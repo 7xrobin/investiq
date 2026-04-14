@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+
+{% block title %}KyronInvest — Chat{% endblock %}
+
+{% block content %}
+<div class="flex h-full overflow-hidden" x-data="chatApp()" x-init="init()">
+
+  <!-- ================================================================
+       LEFT PANEL — Sources & References (40%)
+       ================================================================ -->
+  <aside class="w-[40%] flex flex-col border-r border-gray-200 bg-white overflow-hidden flex-shrink-0">
+
+    <!-- Left panel header -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414
+                   5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <h2 class="font-semibold text-sm text-gray-700">Sources &amp; References</h2>
+      </div>
+      <span class="text-xs text-gray-400" x-text="citations.length > 0 ? citations.length + ' sources' : ''"></span>
+    </div>
+
+    <!-- Citation cards scroll area -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-3">
+
+      <!-- Empty state -->
+      <div x-show="citations.length === 0 && !isStreaming"
+           class="flex flex-col items-center justify-center h-48 text-gray-400 text-center px-6">
+        <svg class="w-10 h-10 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13
+                   C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477
+                   14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477
+                   18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <p class="text-sm font-medium">No references yet</p>
+        <p class="text-xs mt-1">Ask a question — retrieved sources will appear here.</p>
+      </div>
+
+      <!-- Loading indicator during stream -->
+      <div x-show="isStreaming && citations.length === 0"
+           class="flex items-center gap-2 text-sm text-brand-600 p-3">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        Retrieving sources…
+      </div>
+
+      <!-- Citation cards -->
+      <template x-for="(citation, index) in citations" :key="index">
+        <div class="border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md
+                    transition-shadow cursor-pointer overflow-hidden"
+             :class="activeCitationIndex === index ? 'ring-2 ring-brand-400 border-brand-300' : ''"
+             @click="activeCitationIndex = (activeCitationIndex === index ? null : index)">
+
+          <!-- Card header -->
+          <div class="px-3 py-2 border-b border-gray-100 bg-gray-50">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs font-semibold text-gray-800 leading-snug line-clamp-2"
+                 x-text="citation.source_title"></p>
+              <!-- Source type badge -->
+              <span class="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                    :class="{
+                      'bg-blue-100 text-blue-700':   citation.source_type === 'regulatory',
+                      'bg-purple-100 text-purple-700': citation.source_type === 'academic',
+                      'bg-amber-100 text-amber-700':  citation.source_type === 'news',
+                      'bg-gray-100 text-gray-600':    !['regulatory','academic','news'].includes(citation.source_type),
+                    }"
+                    x-text="citation.source_type"></span>
+            </div>
+            <div class="flex items-center gap-2 mt-1 flex-wrap">
+              <span class="text-[10px] text-gray-500"
+                    x-text="[citation.source_author, citation.source_year].filter(Boolean).join(', ')"></span>
+              <!-- Jurisdiction badge -->
+              <span x-show="citation.jurisdiction"
+                    class="text-[10px] font-mono bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded"
+                    x-text="citation.jurisdiction"></span>
+              <!-- Page number -->
+              <span x-show="citation.page_number"
+                    class="text-[10px] text-gray-400"
+                    x-text="'p.' + citation.page_number"></span>
+              <!-- Relevance score -->
+              <span x-show="citation.relevance_score !== null && citation.relevance_score !== undefined"
+                    class="text-[10px] text-gray-400 ml-auto"
+                    x-text="'Score: ' + (citation.relevance_score * 100).toFixed(0) + '%'"></span>
+            </div>
+          </div>
+
+          <!-- Chunk text (expandable) -->
+          <div x-show="activeCitationIndex === index" x-collapse>
+            <div class="p-3 text-xs text-gray-600 leading-relaxed font-mono bg-gray-50
+                        border-b border-gray-100 max-h-48 overflow-y-auto whitespace-pre-wrap"
+                 x-text="citation.chunk_text"></div>
+            <!-- Source URL -->
+            <div x-show="citation.source_url" class="px-3 py-2">
+              <a :href="citation.source_url" target="_blank" rel="noopener noreferrer"
+                 class="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4
+                           M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                View source
+              </a>
+            </div>
+          </div>
+
+          <!-- Collapsed preview -->
+          <div x-show="activeCitationIndex !== index" class="px-3 py-2">
+            <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed"
+               x-text="citation.chunk_text"></p>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Goal summary widget -->
+    {% if active_goal %}
+    <div class="border-t border-gray-200 bg-amber-50 p-3 flex-shrink-0">
+      <div class="flex items-center gap-2 mb-2">
+        <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2
+                   0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002
+                   2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span class="text-xs font-semibold text-amber-800">Active Investment Goal</span>
+      </div>
+      <p class="text-xs text-amber-700 leading-relaxed">{{ active_goal.to_context_string }}</p>
+      <div class="flex gap-3 mt-2 text-xs text-amber-600">
+        {% if active_goal.horizon_years %}
+        <span>{{ active_goal.horizon_years }}yr horizon</span>
+        {% endif %}
+        {% if active_goal.risk_tolerance %}
+        <span class="capitalize">{{ active_goal.risk_tolerance }} risk</span>
+        {% endif %}
+        {% if active_goal.target_return_pct %}
+        <span>{{ active_goal.target_return_pct|floatformat:1 }}% target</span>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="border-t border-gray-200 bg-gray-50 p-3 flex-shrink-0">
+      <p class="text-xs text-gray-400 text-center">
+        No active investment goal.
+        Tell KyronInvest your goals in the chat and they'll be extracted automatically.
+      </p>
+    </div>
+    {% endif %}
+
+  </aside>
+
+  <!-- ================================================================
+       RIGHT PANEL — Chat (60%)
+       ================================================================ -->
+  <section class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+
+    <!-- Chat panel header -->
+    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200
+                bg-white flex-shrink-0 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-brand-700 flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863
+                     9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574
+                     3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-semibold text-sm text-gray-800">KyronInvest Chat</h1>
+          <p class="text-xs text-gray-400" x-text="currentConversationTitle || 'New conversation'"></p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Jurisdiction selector -->
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs text-gray-500 font-medium" for="jurisdictionSelect">Jurisdiction</label>
+          <select id="jurisdictionSelect"
+                  x-model="selectedJurisdiction"
+                  class="text-xs border border-gray-300 rounded-md px-2 py-1 bg-white
+                         text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500">
+            {% for code, label in jurisdiction_choices %}
+            <option value="{{ code }}"
+                    {% if code == default_jurisdiction %}selected{% endif %}>
+              {{ code }} — {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- New conversation button -->
+        <button @click="newConversation()"
+                class="text-xs text-brand-600 hover:text-brand-800 font-medium
+                       flex items-center gap-1 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          New chat
+        </button>
+      </div>
+    </div>
+
+    <!-- Message list -->
+    <div id="messageList"
+         class="flex-1 overflow-y-auto px-5 py-4 space-y-4"
+         x-ref="messageList">
+
+      <!-- Welcome state -->
+      <div x-show="messages.length === 0"
+           class="flex flex-col items-center justify-center h-full text-center py-16">
+        <div class="w-16 h-16 rounded-full bg-brand-100 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+          </svg>
+        </div>
+        <h2 class="text-lg font-semibold text-gray-700 mb-2">Welcome to KyronInvest</h2>
+        <p class="text-sm text-gray-500 max-w-md mb-6">
+          Your AI investment research assistant for expats in Germany.
+          Ask about ETFs, tax implications, German regulations, or portfolio strategies.
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
+          <button @click="fillAndSend('What ETFs are suitable for expats in Germany as long-term index investors?')"
+                  class="text-left text-xs bg-white border border-gray-200 rounded-lg p-3
+                         hover:border-brand-300 hover:bg-brand-50 transition-colors text-gray-600">
+            What ETFs are suitable for expats in Germany as long-term index investors?
+          </button>
+          <button @click="fillAndSend('How does Abgeltungsteuer apply to non-German nationals living in Germany?')"
+                  class="text-left text-xs bg-white border border-gray-200 rounded-lg p-3
+                         hover:border-brand-300 hover:bg-brand-50 transition-colors text-gray-600">
+            How does Abgeltungsteuer apply to non-German nationals living in Germany?
+          </button>
+          <button @click="fillAndSend('What is the Freistellungsauftrag and how do I set it up as an expat?')"
+                  class="text-left text-xs bg-white border border-gray-200 rounded-lg p-3
+                         hover:border-brand-300 hover:bg-brand-50 transition-colors text-gray-600">
+            What is the Freistellungsauftrag and how do I set it up as an expat?
+          </button>
+          <button @click="fillAndSend('Explain MiFID II suitability requirements for retail investors in Germany.')"
+                  class="text-left text-xs bg-white border border-gray-200 rounded-lg p-3
+                         hover:border-brand-300 hover:bg-brand-50 transition-colors text-gray-600">
+            Explain MiFID II suitability requirements for retail investors in Germany.
+          </button>
+        </div>
+      </div>
+
+      <!-- Rendered messages -->
+      <template x-for="(msg, index) in messages" :key="index">
+        <div class="flex"
+             :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+          <div class="max-w-[82%]">
+            <!-- Role label -->
+            <div class="flex items-center gap-2 mb-1"
+                 :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+              <span class="text-[10px] font-medium text-gray-400 uppercase tracking-wider"
+                    x-text="msg.role === 'user' ? 'You' : 'KyronInvest'"></span>
+            </div>
+
+            <!-- Message bubble -->
+            <div class="rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm"
+                 :class="msg.role === 'user'
+                   ? 'bg-brand-700 text-white rounded-tr-sm'
+                   : 'bg-white text-gray-800 rounded-tl-sm border border-gray-200'">
+
+              <!-- User messages: plain text -->
+              <template x-if="msg.role === 'user'">
+                <p x-text="msg.content" class="whitespace-pre-wrap"></p>
+              </template>
+
+              <!-- Assistant messages: markdown rendered -->
+              <template x-if="msg.role === 'assistant'">
+                <div>
+                  <div class="prose prose-sm max-w-none prose-headings:text-gray-800
+                              prose-a:text-brand-600 prose-code:text-xs"
+                       x-html="renderMarkdown(msg.content)"></div>
+
+                  <!-- Streaming cursor -->
+                  <span x-show="msg.isStreaming"
+                        class="inline-block w-0.5 h-4 bg-brand-600 ml-0.5 animate-pulse
+                               align-middle"></span>
+
+                  <!-- Citation chip row -->
+                  <div x-show="msg.citationCount > 0" class="mt-2 pt-2 border-t border-gray-100">
+                    <button @click="showCitationsForMessage(index)"
+                            class="text-[10px] text-brand-600 hover:text-brand-800 font-medium
+                                   flex items-center gap-1 transition-colors">
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586
+                                 a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      <span x-text="msg.citationCount + ' source' + (msg.citationCount > 1 ? 's' : '')"></span>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Input area -->
+    <div class="border-t border-gray-200 bg-white px-5 py-3 flex-shrink-0">
+      <form @submit.prevent="sendMessage()" class="flex gap-3 items-end">
+        <div class="flex-1 relative">
+          <textarea
+            id="messageInput"
+            x-ref="messageInput"
+            x-model="inputText"
+            @keydown.enter.prevent="if (!$event.shiftKey) { sendMessage(); }"
+            :disabled="isStreaming"
+            rows="1"
+            placeholder="Ask about investments, regulations, or tax in Germany… (Enter to send, Shift+Enter for new line)"
+            class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm resize-none
+                   focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+                   disabled:bg-gray-50 disabled:text-gray-400 transition-all
+                   min-h-[44px] max-h-36 overflow-y-auto leading-snug"
+            style="field-sizing: content;"
+          ></textarea>
+        </div>
+
+        <!-- Send button -->
+        <button type="submit"
+                :disabled="isStreaming || !inputText.trim()"
+                class="flex-shrink-0 w-10 h-10 rounded-xl bg-brand-700 text-white
+                       flex items-center justify-center transition-all
+                       hover:bg-brand-800 disabled:opacity-40 disabled:cursor-not-allowed
+                       focus:outline-none focus:ring-2 focus:ring-brand-500">
+          <template x-if="!isStreaming">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+          </template>
+          <template x-if="isStreaming">
+            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10"
+                      stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+          </template>
+        </button>
+      </form>
+
+      <p class="text-[10px] text-gray-400 mt-1.5 text-center">
+        KyronInvest may make mistakes. Always verify with authoritative sources.
+        Responses do not constitute personalised investment advice (§63 WpHG).
+      </p>
+    </div>
+
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function chatApp() {
+  return {
+    // ── State ──────────────────────────────────────────────────────────────
+    messages: [],
+    citations: [],
+    inputText: '',
+    isStreaming: false,
+    conversationId: null,
+    currentConversationTitle: null,
+    selectedJurisdiction: '{{ default_jurisdiction }}',
+    activeCitationIndex: null,
+
+    // ── Lifecycle ──────────────────────────────────────────────────────────
+    init() {
+      // Restore conversation from URL param if present.
+      const params = new URLSearchParams(window.location.search);
+      const convId = params.get('conversation_id');
+      if (convId) {
+        this.conversationId = parseInt(convId, 10);
+        this.loadHistory(this.conversationId);
+      }
+
+      // Configure marked.js options.
+      marked.setOptions({
+        breaks: true,
+        gfm: true,
+      });
+    },
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    renderMarkdown(text) {
+      if (!text) return '';
+      try {
+        return marked.parse(text);
+      } catch (e) {
+        return text;
+      }
+    },
+
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const el = this.$refs.messageList;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    getCsrfToken() {
+      const name = 'csrftoken';
+      const cookies = document.cookie.split(';');
+      for (let c of cookies) {
+        const trimmed = c.trim();
+        if (trimmed.startsWith(name + '=')) {
+          return decodeURIComponent(trimmed.slice(name.length + 1));
+        }
+      }
+      // Fallback: read from hidden input (Django injects this for non-AJAX forms).
+      const el = document.querySelector('[name=csrfmiddlewaretoken]');
+      return el ? el.value : '';
+    },
+
+    fillAndSend(text) {
+      this.inputText = text;
+      this.$nextTick(() => this.sendMessage());
+    },
+
+    newConversation() {
+      this.messages = [];
+      this.citations = [];
+      this.conversationId = null;
+      this.currentConversationTitle = null;
+      this.activeCitationIndex = null;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('conversation_id');
+      window.history.pushState({}, '', url);
+    },
+
+    showCitationsForMessage(messageIndex) {
+      // Citations are always the most recently populated set (from last response).
+      // Scroll left panel into view if any citation exists.
+      if (this.citations.length > 0) {
+        this.activeCitationIndex = 0;
+      }
+    },
+
+    // ── History loading ────────────────────────────────────────────────────
+    async loadHistory(conversationId) {
+      try {
+        const resp = await fetch(`/chat/history/${conversationId}/`, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin',
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        this.currentConversationTitle = data.title;
+        this.messages = (data.messages || []).map(m => ({
+          role: m.role,
+          content: m.content,
+          isStreaming: false,
+          citationCount: (m.citations || []).length,
+        }));
+        // Populate citations from last assistant message.
+        const lastAssistant = [...data.messages].reverse().find(m => m.role === 'assistant');
+        if (lastAssistant && lastAssistant.citations) {
+          this.citations = lastAssistant.citations;
+        }
+        this.scrollToBottom();
+      } catch (e) {
+        console.error('Failed to load conversation history:', e);
+      }
+    },
+
+    // ── Send message + SSE stream ──────────────────────────────────────────
+    async sendMessage() {
+      const text = this.inputText.trim();
+      if (!text || this.isStreaming) return;
+
+      this.inputText = '';
+      this.isStreaming = true;
+      this.citations = [];
+      this.activeCitationIndex = null;
+
+      // Add user message to UI immediately.
+      this.messages.push({ role: 'user', content: text, isStreaming: false, citationCount: 0 });
+      this.scrollToBottom();
+
+      // Add placeholder assistant bubble.
+      const assistantIndex = this.messages.length;
+      this.messages.push({ role: 'assistant', content: '', isStreaming: true, citationCount: 0 });
+      this.scrollToBottom();
+
+      const payload = {
+        message: text,
+        jurisdiction: this.selectedJurisdiction,
+        conversation_id: this.conversationId,
+      };
+
+      try {
+        const response = await fetch('/chat/stream/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken(),
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error('Stream request failed:', response.status, errText);
+          this.messages[assistantIndex].content = 'Sorry, something went wrong. Please try again.';
+          this.messages[assistantIndex].isStreaming = false;
+          this.isStreaming = false;
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // Keep incomplete last line.
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
+
+            let event;
+            try {
+              event = JSON.parse(raw);
+            } catch (e) {
+              console.warn('Failed to parse SSE event:', raw);
+              continue;
+            }
+
+            if (event.type === 'token') {
+              // Append token to the assistant message bubble.
+              this.messages[assistantIndex].content += event.content;
+              this.scrollToBottom();
+
+            } else if (event.type === 'citations') {
+              // Populate left panel.
+              this.citations = event.citations || [];
+              this.messages[assistantIndex].citationCount = this.citations.length;
+
+            } else if (event.type === 'done') {
+              // Finalise.
+              this.messages[assistantIndex].isStreaming = false;
+              this.conversationId = event.conversation_id || this.conversationId;
+              if (!this.currentConversationTitle) {
+                this.currentConversationTitle = text.slice(0, 60);
+              }
+              // Update URL with conversation ID.
+              const url = new URL(window.location.href);
+              url.searchParams.set('conversation_id', this.conversationId);
+              window.history.pushState({}, '', url);
+              this.scrollToBottom();
+
+            } else if (event.type === 'error') {
+              console.error('SSE error from server:', event.message);
+              this.messages[assistantIndex].content +=
+                '\n\n⚠️ An error occurred: ' + event.message;
+              this.messages[assistantIndex].isStreaming = false;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Fetch/stream error:', e);
+        this.messages[assistantIndex].content = 'Connection error. Please check your network and try again.';
+        this.messages[assistantIndex].isStreaming = false;
+      } finally {
+        this.isStreaming = false;
+        this.$nextTick(() => {
+          if (this.$refs.messageInput) this.$refs.messageInput.focus();
+        });
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,394 @@
+# KyronInvest Country & Source Registry
+# ──────────────────────────────────────────────────────────────────────────────
+# Each country entry defines regulatory and news sources for that jurisdiction.
+# Academic sources are listed globally at the bottom.
+#
+# Field schema per source:
+#   name        : Display name for the source
+#   type        : regulatory | academic | news | other
+#   url         : Canonical URL for ingestion
+#   language    : en | de
+#   author      : Issuing body or author name
+#   tags        : List of topic tags
+#   year        : Publication year (omit for continuously updated sources)
+# ──────────────────────────────────────────────────────────────────────────────
+
+countries:
+
+  DE:
+    name: Germany
+    currency: EUR
+    language: de
+    sources:
+
+      # ── Regulatory — BaFin ───────────────────────────────────────────────
+      - name: BaFin Annual Report 2023
+        type: regulatory
+        url: https://www.bafin.de/SharedDocs/Downloads/EN/Jahresbericht/dl_jr_2023_en.html
+        language: en
+        author: BaFin
+        year: 2023
+        tags: [bafin, annual-report, regulation, germany]
+
+      - name: BaFin — Investor Protection
+        type: regulatory
+        url: https://www.bafin.de/EN/Verbraucher/verbraucher_node.html
+        language: en
+        author: BaFin
+        tags: [bafin, investor-protection, retail, wphg]
+
+      - name: BaFin — MiFID II Implementation in Germany
+        type: regulatory
+        url: https://www.bafin.de/EN/Aufsicht/BankenFinanzdienstleister/Wohlverhaltensregeln/wohlverhaltensregeln_node_en.html
+        language: en
+        author: BaFin
+        tags: [mifid2, conduct-of-business, investment-firms, germany]
+
+      - name: BaFin — KAGB (Capital Investment Code)
+        type: regulatory
+        url: https://www.bafin.de/EN/Aufsicht/FondsKollektivanlagen/Investmentfonds/investmentfonds_node_en.html
+        language: en
+        author: BaFin
+        tags: [kagb, investment-funds, aif, ucits, germany]
+
+      - name: BaFin — PRIIPs Regulation
+        type: regulatory
+        url: https://www.bafin.de/EN/Aufsicht/BankenFinanzdienstleister/Produkte/PRIIPs/priips_node_en.html
+        language: en
+        author: BaFin
+        tags: [priips, kid, retail-products, disclosure, germany]
+
+      - name: WpHG — German Securities Trading Act (English summary)
+        type: regulatory
+        url: https://www.bafin.de/EN/Aufsicht/BankenFinanzdienstleister/Wohlverhaltensregeln/WpHG/wphg_node_en.html
+        language: en
+        author: BaFin
+        tags: [wphg, securities, trading, conduct, germany]
+
+      # ── Tax — Bundeszentralamt für Steuern ──────────────────────────────
+      - name: Abgeltungsteuer — German Withholding Tax on Capital Gains
+        type: regulatory
+        url: https://www.bzst.de/DE/Privatpersonen/Kapitalertragsteuer/kapitalertragsteuer_node.html
+        language: de
+        author: Bundeszentralamt für Steuern
+        tags: [abgeltungsteuer, capital-gains-tax, withholding-tax, germany]
+
+      - name: Freistellungsauftrag — German Tax Exemption Order
+        type: regulatory
+        url: https://www.bzst.de/DE/Privatpersonen/Kapitalertragsteuer/Freistellungsauftrag/freistellungsauftrag_node.html
+        language: de
+        author: Bundeszentralamt für Steuern
+        tags: [freistellungsauftrag, tax-exemption, capital-gains, germany]
+
+      # ── Investment Funds — BVI ───────────────────────────────────────────
+      - name: BVI — German Investment Fund Statistics
+        type: regulatory
+        url: https://www.bvi.de/en/statistics/
+        language: en
+        author: BVI Bundesverband Investment und Asset Management
+        tags: [bvi, investment-funds, etf, statistics, germany]
+
+      - name: BVI — Fund Regulation in Germany
+        type: regulatory
+        url: https://www.bvi.de/en/regulation/
+        language: en
+        author: BVI
+        tags: [fund-regulation, kagb, ucits, aif, germany]
+
+      # ── News / Research ──────────────────────────────────────────────────
+      - name: Finanztip — ETF Guide for Germany
+        type: news
+        url: https://www.finanztip.de/indexfonds-etf/
+        language: de
+        author: Finanztip
+        tags: [etf, guide, retail-investing, germany, expat]
+
+      - name: Finanztip — Steuer auf Kapitalerträge
+        type: news
+        url: https://www.finanztip.de/steuer-auf-kapitalertraege/
+        language: de
+        author: Finanztip
+        tags: [tax, capital-gains, abgeltungsteuer, germany]
+
+      - name: Extra-ETF — ETF Comparison Germany
+        type: news
+        url: https://extraetf.com/de/etf-vergleich
+        language: de
+        author: Extra-ETF
+        tags: [etf, comparison, germany, index-funds]
+
+  EU:
+    name: European Union
+    currency: EUR
+    language: en
+    sources:
+
+      # ── Regulatory — ESMA ────────────────────────────────────────────────
+      - name: ESMA — MiFID II Q&A
+        type: regulatory
+        url: https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/mifid-ii
+        language: en
+        author: ESMA
+        tags: [mifid2, esma, qna, investor-protection, eu]
+
+      - name: ESMA — UCITS Directive Guidelines
+        type: regulatory
+        url: https://www.esma.europa.eu/convergence/guidelines-and-technical-standards
+        language: en
+        author: ESMA
+        tags: [ucits, guidelines, esma, funds, eu]
+
+      - name: ESMA — PRIIPs Key Information Documents
+        type: regulatory
+        url: https://www.esma.europa.eu/regulation/priips
+        language: en
+        author: ESMA
+        tags: [priips, kid, disclosure, retail, eu]
+
+      - name: ESMA — Retail Investment Strategy
+        type: regulatory
+        url: https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/retail-investment-strategy
+        language: en
+        author: ESMA
+        tags: [retail, investment-strategy, mifid2, eu]
+
+      # ── Regulatory — ECB ─────────────────────────────────────────────────
+      - name: ECB — Occasional Paper on Household Investment Behaviour
+        type: regulatory
+        url: https://www.ecb.europa.eu/pub/pdf/scpops/ecb.op299~02c4eedb25.en.pdf
+        language: en
+        author: ECB
+        year: 2022
+        tags: [ecb, household-investment, savings, eu, monetary-policy]
+
+      - name: ECB — Economic Bulletin — Household Finances
+        type: regulatory
+        url: https://www.ecb.europa.eu/pub/economic-bulletin/html/index.en.html
+        language: en
+        author: ECB
+        tags: [ecb, economic-bulletin, household, savings, eu]
+
+      # ── Regulatory — EIOPA ───────────────────────────────────────────────
+      - name: EIOPA — Consumer Trends Report
+        type: regulatory
+        url: https://www.eiopa.europa.eu/publications/consumer-trends-reports_en
+        language: en
+        author: EIOPA
+        tags: [eiopa, insurance, pensions, consumer, eu]
+
+      # ── News ─────────────────────────────────────────────────────────────
+      - name: JustETF — European ETF Database
+        type: news
+        url: https://www.justetf.com/en/
+        language: en
+        author: JustETF
+        tags: [etf, database, europe, index-funds, ucits]
+
+  UK:
+    name: United Kingdom
+    currency: GBP
+    language: en
+    sources:
+
+      # ── Regulatory — FCA ─────────────────────────────────────────────────
+      - name: FCA — Consumer Duty Final Rules
+        type: regulatory
+        url: https://www.fca.org.uk/publications/policy-statements/ps22-9-new-consumer-duty
+        language: en
+        author: FCA
+        year: 2022
+        tags: [fca, consumer-duty, retail, uk, conduct]
+
+      - name: FCA — Investment Platforms Market Study
+        type: regulatory
+        url: https://www.fca.org.uk/publications/market-studies/investment-platforms-market-study
+        language: en
+        author: FCA
+        year: 2019
+        tags: [fca, platforms, retail-investment, uk]
+
+      - name: FCA — Financial Lives Survey 2022
+        type: regulatory
+        url: https://www.fca.org.uk/publications/research/financial-lives-2022-survey
+        language: en
+        author: FCA
+        year: 2022
+        tags: [fca, financial-lives, retail-investor, uk]
+
+      # ── Tax — HMRC ───────────────────────────────────────────────────────
+      - name: HMRC — Capital Gains Tax on Investments
+        type: regulatory
+        url: https://www.gov.uk/capital-gains-tax
+        language: en
+        author: HMRC
+        tags: [cgt, capital-gains, uk, tax, investment]
+
+      - name: HMRC — ISA Guidance
+        type: regulatory
+        url: https://www.gov.uk/individual-savings-accounts
+        language: en
+        author: HMRC
+        tags: [isa, savings, tax-free, uk]
+
+      - name: HMRC — SIPP Tax Relief
+        type: regulatory
+        url: https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief
+        language: en
+        author: HMRC
+        tags: [sipp, pension, tax-relief, uk, retirement]
+
+      # ── News ─────────────────────────────────────────────────────────────
+      - name: MoneySavingExpert — Investment Basics
+        type: news
+        url: https://www.moneysavingexpert.com/investing/
+        language: en
+        author: MoneySavingExpert
+        tags: [investment, retail, guide, uk]
+
+  US:
+    name: United States
+    currency: USD
+    language: en
+    sources:
+
+      # ── Regulatory — SEC ─────────────────────────────────────────────────
+      - name: SEC — Investor Bulletin — Exchange-Traded Funds (ETFs)
+        type: regulatory
+        url: https://www.sec.gov/investor/alerts/etfs.pdf
+        language: en
+        author: SEC
+        tags: [sec, etf, investor-bulletin, us]
+
+      - name: SEC — Regulation Best Interest (Reg BI)
+        type: regulatory
+        url: https://www.sec.gov/info/smallbus/secg/regulation-best-interest
+        language: en
+        author: SEC
+        year: 2019
+        tags: [sec, reg-bi, fiduciary, broker-dealer, us]
+
+      - name: SEC — Form ADV — Investment Adviser Registration
+        type: regulatory
+        url: https://www.sec.gov/info/edgar/siccodes.htm
+        language: en
+        author: SEC
+        tags: [sec, adv, investment-adviser, registration, us]
+
+      # ── Tax — IRS ────────────────────────────────────────────────────────
+      - name: IRS — Publication 550 — Investment Income and Expenses
+        type: regulatory
+        url: https://www.irs.gov/publications/p550
+        language: en
+        author: IRS
+        tags: [irs, publication-550, investment-income, capital-gains, us, tax]
+
+      - name: IRS — PFIC Rules for Foreign Investments
+        type: regulatory
+        url: https://www.irs.gov/instructions/i8621
+        language: en
+        author: IRS
+        tags: [pfic, foreign-investment, tax, expat, us, form-8621]
+
+      # ── News / Research ──────────────────────────────────────────────────
+      - name: Bogleheads Wiki — Three-Fund Portfolio
+        type: news
+        url: https://www.bogleheads.org/wiki/Three-fund_portfolio
+        language: en
+        author: Bogleheads Community
+        tags: [three-fund, passive-investing, index-funds, us, vanguard]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Academic sources — jurisdiction: GLOBAL
+# ──────────────────────────────────────────────────────────────────────────────
+
+academic_sources:
+
+  - title: Portfolio Selection
+    author: Harry Markowitz
+    year: 1952
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [mpt, portfolio-theory, diversification, markowitz, classic]
+    url: https://www.jstor.org/stable/2975974
+
+  - title: Capital Asset Prices — A Theory of Market Equilibrium under Conditions of Risk
+    author: William F. Sharpe
+    year: 1964
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [capm, sharpe, market-equilibrium, risk, classic]
+    url: https://doi.org/10.1111/j.1540-6261.1964.tb02865.x
+
+  - title: The Performance of Mutual Funds in the Period 1945–1964
+    author: Michael C. Jensen
+    year: 1968
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [mutual-funds, performance, alpha, jensen, classic]
+    url: https://doi.org/10.1111/j.1540-6261.1968.tb00815.x
+
+  - title: Common Risk Factors in the Returns on Stocks and Bonds
+    author: Eugene F. Fama and Kenneth R. French
+    year: 1993
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [fama-french, factor-investing, three-factor, size, value]
+    url: https://doi.org/10.1016/0304-405X(93)90023-5
+
+  - title: The Cross-Section of Expected Stock Returns
+    author: Eugene F. Fama and Kenneth R. French
+    year: 1992
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [fama-french, expected-returns, size-premium, value-premium]
+    url: https://doi.org/10.1111/j.1540-6261.1992.tb04398.x
+
+  - title: A Random Walk Down Wall Street
+    author: Burton G. Malkiel
+    year: 2023
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [passive-investing, efficient-markets, index-funds, random-walk]
+    url: https://wwnorton.com/books/9780393358643
+
+  - title: Diversification, Portfolio Theory, and the Investment Horizon
+    author: Zvi Bodie, Alex Kane, Alan J. Marcus
+    year: 2022
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [investments, textbook, diversification, portfolio-theory]
+    url: https://www.mheducation.com/highered/product/investments-bodie-kane/M9781264412662.html
+
+  - title: Global Evidence on ETF Performance
+    author: Utpal Bhattacharya, Benjamin Loos, Steffen Meyer, Andreas Hackethal
+    year: 2017
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [etf, performance, retail-investors, global]
+    url: https://doi.org/10.1093/rof/rfx003
+
+  - title: Household Finance
+    author: John Y. Campbell
+    year: 2006
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [household-finance, retail-investor, savings, portfolio-choice]
+    url: https://doi.org/10.1111/j.1540-6261.2006.00883.x
+
+  - title: The Rate of Return on Everything, 1870–2015
+    author: Òscar Jordà, Katharina Knoll, Dmitry Kuvshinov, Moritz Schularick, Alan M. Taylor
+    year: 2019
+    source_type: academic
+    jurisdiction: GLOBAL
+    language: en
+    tags: [long-run-returns, historical-data, equities, bonds, housing]
+    url: https://doi.org/10.1093/qje/qjy032
