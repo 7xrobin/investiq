@@ -51,7 +51,7 @@ LOCAL_APPS = [
     "apps.core",
     "apps.chat",
     "apps.rag",
-    "apps.ingestion",
+    "apps.embed",
     "apps.goals",
     "apps.sources",
 ]
@@ -151,17 +151,6 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     }
 }
-
-# ---------------------------------------------------------------------------
-# Celery — broker defaults to localhost Redis; only needed for ingestion tasks
-# ---------------------------------------------------------------------------
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TIMEZONE = "Europe/Berlin"
-CELERY_TASK_TRACK_STARTED = True
 
 # ---------------------------------------------------------------------------
 # OpenAI / LangChain

@@ -1,0 +1,163 @@
+"""
+KyronInvest LangChain tool-calling agent.
+"""
+from __future__ import annotations
+
+import logging
+from typing import Generator
+
+from django.conf import settings
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain_core.documents import Document
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_openai import ChatOpenAI
+
+from .chain import _docs_to_citation_dicts, _format_docs
+from .prompts import AGENT_SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+from .query_builder import reform_query
+from .retriever import get_retriever
+from .tools import make_all_tools
+
+logger = logging.getLogger(__name__)
+
+
+def _get_chat_history(conversation_id: int) -> SQLChatMessageHistory:
+    """Keyed by conversation pk, stored in data/memory.sqlite3 (separate from db.sqlite3)."""
+    return SQLChatMessageHistory(
+        session_id=str(conversation_id),
+        connection_string=f"sqlite:///{settings.MEMORY_DB_PATH}",
+    )
+
+
+def create_investiq_agent(
+    user_id: int,
+    conversation_id: int,
+    jurisdiction: str = "DE",
+    goal_context: str = "",
+) -> RunnableWithMessageHistory:
+    """Return the agent with tools and memory wired in.
+
+    {input} will contain the user question plus pre-retrieved context, so the
+    agent answers from context and optionally calls tools for goal side-effects.
+    """
+    tools = make_all_tools(user_id=user_id, conversation_id=conversation_id)
+
+    llm = ChatOpenAI(
+        model=settings.OPENAI_MODEL,
+        temperature=0.2,
+        streaming=True,
+        openai_api_key=settings.OPENAI_API_KEY,
+    )
+
+    # Plain .format() keeps {jurisdiction}/{goal_context} out of LangChain's
+    # template parser, which would conflict with {input}/{agent_scratchpad}.
+    system_content = AGENT_SYSTEM_PROMPT.format(
+        jurisdiction=jurisdiction,
+        goal_context=goal_context or "No investment goals set.",
+    )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_content),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+        MessagesPlaceholder("agent_scratchpad"),
+    ])
+
+    agent = create_tool_calling_agent(llm, tools, prompt)
+
+    executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=False,
+        return_intermediate_steps=True,
+        max_iterations=6,
+        handle_parsing_errors=True,
+    )
+
+    return RunnableWithMessageHistory(
+        executor,
+        get_session_history=lambda sid: _get_chat_history(int(sid)),
+        input_messages_key="input",
+        history_messages_key="chat_history",
+        output_messages_key="output",
+    )
+
+
+def stream_agent_response(
+    user_message: str,
+    conversation_id: int,
+    user_id: int,
+    jurisdiction: str = "DE",
+    goal_context: str = "",
+) -> Generator[dict, None, None]:
+    """Retrieve → emit citations → run agent → emit tokens.
+
+    Yields: {"type": "citations"}, {"type": "token"}, {"type": "done"}, {"type": "error"}
+    """
+    logger.info(
+        "stream_agent_response: conversation=%d user=%d jurisdiction=%s",
+        conversation_id, user_id, jurisdiction,
+    )
+
+    try:
+        reformulated_queries = reform_query(user_message, jurisdiction=jurisdiction)
+    except Exception:
+        reformulated_queries = [user_message]
+        logger.warning("Query reformulation failed, using original query.")
+
+    retriever = get_retriever(jurisdiction=jurisdiction)
+    seen: set[str] = set()
+    all_docs: list[Document] = []
+
+    for q in reformulated_queries:
+        try:
+            for doc in retriever.invoke(q):
+                key = doc.page_content[:200]
+                if key not in seen:
+                    seen.add(key)
+                    all_docs.append(doc)
+        except Exception as exc:
+            logger.warning("Retrieval failed for query %r: %s", q, exc)
+
+    yield {"type": "citations", "citations": _docs_to_citation_dicts(all_docs)}
+
+    context = _format_docs(all_docs)
+    prompt_text = USER_PROMPT_TEMPLATE.format(
+        user_message=user_message,
+        context=context,
+        jurisdiction=jurisdiction,
+        goal_context=goal_context or "No investment goals set.",
+    )
+
+    try:
+        agent = create_investiq_agent(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            jurisdiction=jurisdiction,
+            goal_context=goal_context,
+        )
+    except Exception as exc:
+        logger.exception("Failed to build agent: %s", exc)
+        yield {"type": "error", "message": f"Agent initialisation error: {exc}"}
+        return
+
+    config = {"configurable": {"session_id": str(conversation_id)}}
+    final_output = ""
+
+    try:
+        for chunk in agent.stream({"input": prompt_text}, config=config):
+            # AgentExecutor yields step-level dicts; "output" is the final answer.
+            if "output" in chunk:
+                final_output = chunk["output"]
+    except Exception as exc:
+        logger.exception("Agent error for conversation=%d: %s", conversation_id, exc)
+        yield {"type": "error", "message": f"Agent error: {exc}"}
+        return
+
+    for word in final_output.split(" "):
+        if word:
+            yield {"type": "token", "content": word + " "}
+
+    yield {"type": "done"}

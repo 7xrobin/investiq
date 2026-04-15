@@ -17,7 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 from apps.goals.models import InvestmentGoal
-from apps.rag.chain import stream_rag_response
+from apps.rag.agent import stream_agent_response
 
 from .models import Citation, Conversation, Message
 from .serializers import serialize_conversation
@@ -140,9 +140,10 @@ class StreamView(LoginRequiredMixin, View):
             collected_citations: list[dict] = []
 
             try:
-                for chunk in stream_rag_response(
+                for chunk in stream_agent_response(
                     user_message=user_message_text,
                     conversation_id=conversation.pk,
+                    user_id=request.user.pk,
                     jurisdiction=jurisdiction,
                     goal_context=goal_context,
                 ):

@@ -81,6 +81,8 @@
           <a href="{% url 'goals:list' %}"
              class="text-brand-200 hover:text-white transition-colors">Goals</a>
           {% if user.is_staff %}
+          <a href="{% url 'embed:index' %}"
+             class="text-brand-200 hover:text-white transition-colors">Embed</a>
           <a href="{% url 'admin:index' %}"
              class="text-brand-200 hover:text-white transition-colors">Admin</a>
           {% endif %}

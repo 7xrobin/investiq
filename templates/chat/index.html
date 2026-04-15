@@ -119,40 +119,6 @@
       </template>
     </div>
 
-    <!-- Goal summary widget -->
-    {% if active_goal %}
-    <div class="border-t border-gray-200 bg-amber-50 p-3 flex-shrink-0">
-      <div class="flex items-center gap-2 mb-2">
-        <svg class="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2
-                   0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002
-                   2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-        </svg>
-        <span class="text-xs font-semibold text-amber-800">Active Investment Goal</span>
-      </div>
-      <p class="text-xs text-amber-700 leading-relaxed">{{ active_goal.to_context_string }}</p>
-      <div class="flex gap-3 mt-2 text-xs text-amber-600">
-        {% if active_goal.horizon_years %}
-        <span>{{ active_goal.horizon_years }}yr horizon</span>
-        {% endif %}
-        {% if active_goal.risk_tolerance %}
-        <span class="capitalize">{{ active_goal.risk_tolerance }} risk</span>
-        {% endif %}
-        {% if active_goal.target_return_pct %}
-        <span>{{ active_goal.target_return_pct|floatformat:1 }}% target</span>
-        {% endif %}
-      </div>
-    </div>
-    {% else %}
-    <div class="border-t border-gray-200 bg-gray-50 p-3 flex-shrink-0">
-      <p class="text-xs text-gray-400 text-center">
-        No active investment goal.
-        Tell KyronInvest your goals in the chat and they'll be extracted automatically.
-      </p>
-    </div>
-    {% endif %}
-
   </aside>
 
   <!-- ================================================================
@@ -315,14 +281,14 @@
             x-ref="messageInput"
             x-model="inputText"
             @keydown.enter.prevent="if (!$event.shiftKey) { sendMessage(); }"
+            @input="autoResize($event.target)"
             :disabled="isStreaming"
             rows="1"
             placeholder="Ask about investments, regulations, or tax in Germany… (Enter to send, Shift+Enter for new line)"
             class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm resize-none
                    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
-                   disabled:bg-gray-50 disabled:text-gray-400 transition-all
-                   min-h-[44px] max-h-36 overflow-y-auto leading-snug"
-            style="field-sizing: content;"
+                   disabled:bg-gray-50 disabled:text-gray-400 transition-all overflow-y-auto leading-snug"
+            style="min-height:44px; max-height:144px;"
           ></textarea>
         </div>
 
@@ -392,6 +358,11 @@ function chatApp() {
     },
 
     // ── Helpers ────────────────────────────────────────────────────────────
+    autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 144) + 'px';
+    },
+
     renderMarkdown(text) {
       if (!text) return '';
       try {
@@ -479,6 +450,9 @@ function chatApp() {
       if (!text || this.isStreaming) return;
 
       this.inputText = '';
+      if (this.$refs.messageInput) {
+        this.$refs.messageInput.style.height = '44px';
+      }
       this.isStreaming = true;
       this.citations = [];
       this.activeCitationIndex = null;

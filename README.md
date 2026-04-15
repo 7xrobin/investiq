@@ -19,7 +19,7 @@ AI-powered investment research assistant for expat professionals in Germany. Ask
 
 | Package | Version | Role |
 |---|---|---|
-| **LangChain** | 0.3 | Core RAG abstractions — chains, runnables, retrievers, prompt templates |
+| **LangChain** | 0.3 | Core abstractions — chains, runnables, tool-calling agent, prompt templates |
 | **langchain-openai** | 0.2 | LangChain bindings for OpenAI Chat and Embedding models |
 | **langchain-community** | 0.3 | `SQLChatMessageHistory` — persists conversation memory to SQLite |
 | **langchain-chroma** | 0.1 | LangChain bindings for the Chroma vector store |
@@ -63,25 +63,50 @@ AI-powered investment research assistant for expat professionals in Germany. Ask
 ```
 Browser
   └── Django (SSE streaming views)
-        ├── Chat app      → stream_rag_response() → OpenAI GPT-4o
+        ├── Chat app      → stream_agent_response() → LangChain Agent → OpenAI GPT-4o
         ├── RAG app       → Chroma retriever (jurisdiction filter)
         │                 → SQLChatMessageHistory (SQLite memory)
+        │                 → Tools: save_goal · update_goal · simulate_returns
         ├── Ingestion app → Celery workers → Chroma vector store
-        └── Goals app     → LLM goal extractor → InvestmentGoal model
+        └── Goals app     → InvestmentGoal model (written to by agent tools)
 ```
+
+### RAG app modules
+
+| File | Role |
+|---|---|
+| `retriever.py` | Chroma vector store — jurisdiction-filtered similarity search |
+| `chain.py` | Shared utilities: `_format_docs`, `_docs_to_citation_dicts`, `build_rag_chain` |
+| `agent.py` | Agent definition (`create_investiq_agent`) and streaming entry point (`stream_agent_response`) — owns SQLite memory wiring |
+| `tools.py` | LangChain `@tool` definitions for goal management and portfolio simulation |
+| `prompts.py` | All prompt strings: `SYSTEM_PROMPT`, `USER_PROMPT_TEMPLATE`, `AGENT_SYSTEM_PROMPT`, `GOAL_EXTRACTION_PROMPT`, `QUERY_REFORM_PROMPT` |
+| `query_builder.py` | Multi-query reformulation — expands one query into 3 retrieval variants |
 
 ### Request flow
 
 ```
 User message
-  → query reformulation (3 variants via LLM)
-  → Chroma similarity search (filtered by jurisdiction)
-  → inject last 5 conversation turns from memory
-  → LLM synthesis (GPT-4o, streamed)
-  → SSE token stream to browser
-  → left panel citation cards populated
-  → conversation turn saved to SQLite memory
+  → query reformulation (3 variants via LLM)             [query_builder.py]
+  → Chroma similarity search, jurisdiction-filtered       [retriever.py]
+  → SSE: citations emitted to left panel immediately
+  → question + retrieved context formatted into {input}   [chain.py utilities]
+  → LangChain tool-calling agent invoked                  [agent.py]
+      ├── answers using context (no tool call needed)
+      ├── OR calls save_investment_goal / update_investment_goal
+      └── OR calls simulate_portfolio_returns
+  → final answer emitted word-by-word as SSE token events
+  → turn saved to SQLite memory (data/memory.sqlite3)     [agent.py]
 ```
+
+### Storage layers
+
+| Layer | Technology | What lives there |
+|---|---|---|
+| Vector store | Chroma (`data/chroma/`) | Document embeddings, searched by the RAG pipeline |
+| Conversation memory | SQLite (`data/memory.sqlite3`) | LangChain `SQLChatMessageHistory`, managed by `agent.py` |
+| App data | SQLite (`db.sqlite3`) | Users, Conversations, Messages, Citations, InvestmentGoals |
+
+> Retrieval is part of the pipeline and always runs — it is **not** a LangChain tool. Tools are reserved for goal management side-effects the LLM can optionally trigger mid-conversation.
 
 ---
 
@@ -93,9 +118,15 @@ investiq/
 ├── apps/
 │   ├── core/                 # Custom User model, UserProfile
 │   ├── chat/                 # Conversation, Message, Citation models; SSE views
-│   ├── rag/                  # chain.py, prompts.py, retriever.py, query_builder.py
+│   ├── rag/
+│   │   ├── agent.py          # LangChain agent definition + stream_agent_response()
+│   │   ├── tools.py          # @tool definitions: save/update goal, simulate returns
+│   │   ├── chain.py          # Shared utilities: _format_docs, build_rag_chain
+│   │   ├── prompts.py        # All prompts (SYSTEM, USER, AGENT, GOAL_EXTRACTION, QUERY_REFORM)
+│   │   ├── retriever.py      # Chroma vector store, jurisdiction-filtered retriever
+│   │   └── query_builder.py  # Multi-query reformulation
 │   ├── ingestion/            # PDF + web loaders, chunker, Celery tasks
-│   ├── goals/                # InvestmentGoal model, LLM goal extractor
+│   ├── goals/                # InvestmentGoal model, LLM extractor, views
 │   └── sources/              # SourceDocument tracker, admin corpus browser
 ├── templates/                # base.html + split-panel chat UI
 ├── static/                   # CSS entry point
@@ -165,24 +196,15 @@ python manage.py shell_plus
 
 ---
 
-## Environment Variables
-
-Only secrets for external services go in `.env`. Everything else is hardcoded with sensible defaults.
-
-| Variable | Required | Description |
-|---|---|---|
-| `DJANGO_SECRET_KEY` | Yes | Django cryptographic signing key |
-| `OPENAI_API_KEY` | Yes | OpenAI API key (used for GPT-4o and text-embedding-3-small) |
-| `LANGCHAIN_API_KEY` | No | LangSmith API key — enables chain tracing at smith.langchain.com |
-
----
-
 ## Key Design Rules
 
 1. **All prompts** live in `apps/rag/prompts.py` only — never inline elsewhere
-2. **All LLM calls** flow through `apps/rag/chain.py` only
-3. **Every chunk** carries the full metadata schema at ingest time (`source_type`, `author`, `title`, `year`, `jurisdiction`, `url`, `page`, `last_ingested`, `language`, `tags`)
-4. **Jurisdiction filter** is always applied on retrieval — never retrieve without one
-5. **§63 WpHG disclaimer** is appended to every investment strategy response
-6. **Chat responses** use SSE streaming; all other endpoints are synchronous
-7. **Response language** auto-detected from user message (DE or EN)
+2. **All LLM calls** flow through `apps/rag/agent.py` (`stream_agent_response`) or `apps/rag/chain.py` (`build_rag_chain` for testing)
+3. **Retrieval is pipeline, not a tool** — Chroma is always queried before the agent runs; tools are for goal management side-effects only
+4. **Every chunk** carries the full metadata schema at ingest time (`source_type`, `author`, `title`, `year`, `jurisdiction`, `url`, `page`, `last_ingested`, `language`, `tags`)
+5. **Jurisdiction filter** is always applied on retrieval — never retrieve without one
+<!-- TODO: improve UX of it -->
+6. **§63 WpHG disclaimer** is appended to every investment strategy response (enforced in `AGENT_SYSTEM_PROMPT` and `simulate_portfolio_returns` tool docstring)
+7. **Chat responses** use SSE streaming; all other endpoints are synchronous
+8. **Response language** auto-detected from user message (DE or EN)
+9. **User context in tools** is captured via closures at agent-build time — the LLM never receives or passes `user_id`
