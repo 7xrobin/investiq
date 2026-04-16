@@ -79,8 +79,8 @@ def load_url(url: str, timeout: float = 30.0) -> str:
 
     headers = {
         "User-Agent": (
-            "Mozilla/5.0 (compatible; KyronInvestBot/1.0; "
-            "+https://kyroninvest.de/bot)"
+            "Mozilla/5.0 (compatible; InvestiqBot/1.0; "
+            "+https://investiq.de/bot)"
         ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en,de;q=0.9",

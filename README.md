@@ -1,4 +1,4 @@
-# KyronInvest
+# Investiq
 
 AI-powered investment research assistant for expat professionals in Germany. Ask questions about investment regulations, portfolio theory, and financial products — get grounded, cited answers drawn from regulatory documents and academic literature, streamed in real time.
 

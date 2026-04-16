@@ -29,7 +29,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ("preferred_jurisdiction", "preferred_language", "is_staff", "is_active")
     fieldsets = BaseUserAdmin.fieldsets + (
         (
-            _("KyronInvest"),
+            _("Investiq"),
             {"fields": ("preferred_jurisdiction", "preferred_language")},
         ),
     )

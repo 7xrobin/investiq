@@ -1,5 +1,5 @@
 """
-KyronInvest LangChain tool-calling agent.
+Investiq LangChain tool-calling agent.
 """
 from __future__ import annotations
 

@@ -28,7 +28,7 @@ RISK_TOLERANCE_CHOICES = [
 
 class User(AbstractUser):
     """
-    Custom user model for KyronInvest.
+    Custom user model for Investiq.
 
     Stores jurisdiction preference so that the RAG retriever can be
     pre-filtered without requiring the user to select it every session.

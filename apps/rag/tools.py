@@ -1,5 +1,5 @@
 """
-LangChain tools for the KyronInvest agent.
+LangChain tools for the Investiq agent.
 
 Goal management and portfolio simulation — side-effects the LLM can trigger
 mid-conversation. Retrieval is not a tool; it runs unconditionally in agent.py.

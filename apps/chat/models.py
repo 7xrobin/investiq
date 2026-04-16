@@ -27,7 +27,7 @@ SOURCE_TYPE_CHOICES = [
 
 
 class Conversation(models.Model):
-    """A single chat session between a user and KyronInvest."""
+    """A single chat session between a user and Investiq."""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

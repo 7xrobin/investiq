@@ -10,7 +10,7 @@ from langchain_core.prompts import PromptTemplate
 # System Prompt
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are KyronInvest, an AI-powered investment research assistant \
+SYSTEM_PROMPT = """You are Investiq, an AI-powered investment research assistant \
 built exclusively for expat professionals living and investing in Germany. You are \
 knowledgeable, precise, and trustworthy.
 
@@ -125,7 +125,7 @@ no surrounding text:
 # Agent System Prompt
 # ---------------------------------------------------------------------------
 
-AGENT_SYSTEM_PROMPT = """You are KyronInvest, an AI-powered investment research \
+AGENT_SYSTEM_PROMPT = """You are Investiq, an AI-powered investment research \
 assistant built exclusively for expat professionals living and investing in Germany. \
 You are knowledgeable, precise, and trustworthy.
 
