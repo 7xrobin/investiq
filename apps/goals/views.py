@@ -8,7 +8,7 @@ import logging
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -19,28 +19,45 @@ from .models import InvestmentGoal
 logger = logging.getLogger(__name__)
 
 
+def _goal_to_dict(g: InvestmentGoal) -> dict:
+    """Serialise an InvestmentGoal to the JSON shape used by the API."""
+    return {
+        "id": g.pk,
+        "is_active": g.is_active,
+        "horizon_years": g.horizon_years,
+        "risk_tolerance": g.risk_tolerance,
+        "target_return_pct": g.target_return_pct,
+        "monthly_savings_eur": g.monthly_savings_eur,
+        "goal_description": g.goal_description,
+        "context_string": g.to_context_string(),
+        "created_at": g.created_at.isoformat(),
+    }
+
+
 class GoalListView(LoginRequiredMixin, View):
     """
-    GET /goals/ — returns all investment goals for the current user as JSON.
+    GET /goals/ — render HTML goals page (empty state or active goal card).
+
+    Content-negotiates: returns JSON when the Accept header requests it or
+    when the ?format=json query param is set, preserving the existing API.
     """
 
     def get(self, request):
         goals = InvestmentGoal.objects.filter(user=request.user).order_by("-created_at")
-        data = [
-            {
-                "id": g.pk,
-                "is_active": g.is_active,
-                "horizon_years": g.horizon_years,
-                "risk_tolerance": g.risk_tolerance,
-                "target_return_pct": g.target_return_pct,
-                "monthly_savings_eur": g.monthly_savings_eur,
-                "goal_description": g.goal_description,
-                "context_string": g.to_context_string(),
-                "created_at": g.created_at.isoformat(),
-            }
-            for g in goals
-        ]
-        return JsonResponse({"goals": data})
+
+        wants_json = (
+            "application/json" in request.headers.get("Accept", "")
+            or request.GET.get("format") == "json"
+        )
+        if wants_json:
+            return JsonResponse({"goals": [_goal_to_dict(g) for g in goals]})
+
+        active_goal = goals.filter(is_active=True).first()
+        history = goals.filter(is_active=False)
+        return render(request, "goals/list.html", {
+            "active_goal": active_goal,
+            "history": history,
+        })
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -122,4 +139,8 @@ class GoalDeactivateView(LoginRequiredMixin, View):
         goal = get_object_or_404(InvestmentGoal, pk=pk, user=request.user)
         goal.is_active = False
         goal.save(update_fields=["is_active", "updated_at"])
-        return JsonResponse({"status": "deactivated", "goal_id": goal.pk})
+
+        # Programmatic callers get JSON; browser form posts get a redirect back.
+        if "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse({"status": "deactivated", "goal_id": goal.pk})
+        return redirect("goals:list")

@@ -159,6 +159,10 @@ class StreamView(LoginRequiredMixin, View):
                         payload = json.dumps({"type": "citations", "citations": collected_citations})
                         yield f"data: {payload}\n\n"
 
+                    elif chunk_type == "goal_card":
+                        payload = json.dumps({"type": "goal_card", "goal": chunk.get("goal", {})})
+                        yield f"data: {payload}\n\n"
+
                     elif chunk_type == "done":
                         # Persist the assistant message + citations.
                         full_response = "".join(collected_tokens)

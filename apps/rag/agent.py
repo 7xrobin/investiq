@@ -20,6 +20,33 @@ from .tools import make_all_tools
 
 logger = logging.getLogger(__name__)
 
+_GOAL_WRITING_TOOLS = {"save_investment_goal", "update_investment_goal"}
+
+
+def _fetch_active_goal_card(user_id: int) -> dict | None:
+    """Return the user's current active goal as a card-ready dict, or None."""
+    from apps.goals.models import InvestmentGoal, RISK_TOLERANCE_CHOICES
+
+    goal = (
+        InvestmentGoal.objects.filter(user_id=user_id, is_active=True)
+        .order_by("-created_at")
+        .first()
+    )
+    if goal is None:
+        return None
+
+    risk_display = dict(RISK_TOLERANCE_CHOICES).get(goal.risk_tolerance, "") if goal.risk_tolerance else ""
+    return {
+        "id": goal.pk,
+        "goal_description": goal.goal_description or "",
+        "horizon_years": goal.horizon_years,
+        "risk_tolerance": goal.risk_tolerance,
+        "risk_tolerance_display": risk_display,
+        "target_return_pct": goal.target_return_pct,
+        "monthly_savings_eur": goal.monthly_savings_eur,
+        "created_at": goal.created_at.isoformat(),
+    }
+
 
 def _get_chat_history(conversation_id: int) -> SQLChatMessageHistory:
     """Keyed by conversation pk, stored in data/memory.sqlite3 (separate from db.sqlite3)."""
@@ -127,6 +154,14 @@ def stream_agent_response(
 
     try:
         for chunk in agent.stream({"input": prompt_text}, config=config):
+            # Detect goal-writing tool completions so the UI can render a card.
+            for step in chunk.get("steps", []) or []:
+                tool_name = getattr(getattr(step, "action", None), "tool", None)
+                if tool_name in _GOAL_WRITING_TOOLS:
+                    card = _fetch_active_goal_card(user_id)
+                    if card is not None:
+                        yield {"type": "goal_card", "goal": card}
+
             # AgentExecutor yields step-level dicts; "output" is the final answer.
             if "output" in chunk:
                 final_output = chunk["output"]
