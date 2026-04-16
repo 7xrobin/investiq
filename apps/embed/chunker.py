@@ -30,6 +30,8 @@ METADATA_SCHEMA: dict[str, type] = {
     "language": str,       # 'en' | 'de'
     "tags": str,           # Comma-separated keywords (string for Chroma compatibility)
     "section_title": str,  # Section heading this chunk belongs to
+    "source_id": str,      # Stable source identity for idempotent storage/retrieval
+    "chunk_id": str,       # Stable chunk identity within the source
 }
 
 VALID_SOURCE_TYPES = {"regulatory", "academic", "news", "other"}
@@ -58,6 +60,8 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "language": "en",
         "tags": "",
         "section_title": "",
+        "source_id": "",
+        "chunk_id": "",
     }
 
     filled = {**defaults, **metadata}
@@ -72,7 +76,7 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
 
     # Normalise string fields.
     for str_field in ("source_type", "author", "title", "jurisdiction", "url",
-                      "language", "last_ingested", "section_title"):
+                      "language", "last_ingested", "section_title", "source_id", "chunk_id"):
         filled[str_field] = str(filled[str_field]).strip()
 
     # Convert tags to a comma-separated string — Chroma cannot store empty lists.
@@ -135,6 +139,7 @@ def chunk_document(
 
     validated_meta = _validate_and_fill_metadata(metadata)
 
+    # TODO: improve the chunking logic
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=overlap,
@@ -160,6 +165,7 @@ def chunk_document(
         chunk_meta["chunk_index"] = chunk_idx
         chunk_meta["chunk_count_in_doc"] = len(raw_chunks)
         chunk_meta["section_title"] = extract_section_title(chunk_text)
+        chunk_meta["chunk_id"] = str(chunk_idx)
         documents.append(Document(page_content=chunk_text, metadata=chunk_meta))
 
     logger.info(

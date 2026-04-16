@@ -9,15 +9,13 @@ from typing import Generator
 from django.conf import settings
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_community.chat_message_histories import SQLChatMessageHistory
-from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_openai import ChatOpenAI
 
 from .chain import _docs_to_citation_dicts, _format_docs
 from .prompts import AGENT_SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
-from .query_builder import reform_query
-from .retriever import get_retriever
+from .retriever import retrieve_context_docs
 from .tools import make_all_tools
 
 logger = logging.getLogger(__name__)
@@ -101,26 +99,7 @@ def stream_agent_response(
         conversation_id, user_id, jurisdiction,
     )
 
-    try:
-        reformulated_queries = reform_query(user_message, jurisdiction=jurisdiction)
-    except Exception:
-        reformulated_queries = [user_message]
-        logger.warning("Query reformulation failed, using original query.")
-
-    retriever = get_retriever(jurisdiction=jurisdiction)
-    seen: set[str] = set()
-    all_docs: list[Document] = []
-
-    for q in reformulated_queries:
-        try:
-            for doc in retriever.invoke(q):
-                key = doc.page_content[:200]
-                if key not in seen:
-                    seen.add(key)
-                    all_docs.append(doc)
-        except Exception as exc:
-            logger.warning("Retrieval failed for query %r: %s", q, exc)
-
+    all_docs = retrieve_context_docs(user_message=user_message, jurisdiction=jurisdiction)
     yield {"type": "citations", "citations": _docs_to_citation_dicts(all_docs)}
 
     context = _format_docs(all_docs)

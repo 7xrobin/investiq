@@ -111,6 +111,13 @@ class Citation(models.Model):
     source_author = models.CharField(max_length=255, blank=True, default="", verbose_name=_("Author"))
     source_year = models.IntegerField(null=True, blank=True, verbose_name=_("Year"))
     source_url = models.URLField(blank=True, default="", verbose_name=_("URL"))
+    source_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Source ID"),
+        help_text=_("Stable source identifier from embedding metadata."),
+    )
     source_type = models.CharField(
         max_length=20,
         choices=SOURCE_TYPE_CHOICES,
@@ -118,6 +125,13 @@ class Citation(models.Model):
         verbose_name=_("Source Type"),
     )
     page_number = models.IntegerField(null=True, blank=True, verbose_name=_("Page Number"))
+    chunk_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name=_("Chunk ID"),
+        help_text=_("Stable chunk identifier from embedding metadata."),
+    )
     jurisdiction = models.CharField(
         max_length=10,
         choices=JURISDICTION_CHOICES,
@@ -150,8 +164,10 @@ class Citation(models.Model):
             "source_author": self.source_author,
             "source_year": self.source_year,
             "source_url": self.source_url,
+            "source_id": self.source_id,
             "source_type": self.source_type,
             "page_number": self.page_number,
+            "chunk_id": self.chunk_id,
             "jurisdiction": self.jurisdiction,
             "relevance_score": self.relevance_score,
             "chunk_text": self.chunk_text,

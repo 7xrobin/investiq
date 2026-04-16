@@ -89,6 +89,14 @@
                     class="text-[10px] text-gray-400 ml-auto"
                     x-text="'Score: ' + (citation.relevance_score * 100).toFixed(0) + '%'"></span>
             </div>
+            <div class="mt-1.5 space-y-1">
+              <p x-show="citation.source_id"
+                 class="text-[10px] text-gray-500 font-mono break-all"
+                 x-text="'source_id: ' + citation.source_id"></p>
+              <p x-show="citation.chunk_id"
+                 class="text-[10px] text-gray-500 font-mono break-all"
+                 x-text="'chunk_id: ' + citation.chunk_id"></p>
+            </div>
           </div>
 
           <!-- Chunk text (expandable) -->
@@ -410,8 +418,9 @@ function chatApp() {
     },
 
     showCitationsForMessage(messageIndex) {
-      // Citations are always the most recently populated set (from last response).
-      // Scroll left panel into view if any citation exists.
+      const msg = this.messages[messageIndex];
+      const messageCitations = (msg && msg.citations) ? msg.citations : [];
+      this.citations = messageCitations;
       if (this.citations.length > 0) {
         this.activeCitationIndex = 0;
       }
@@ -431,6 +440,7 @@ function chatApp() {
           role: m.role,
           content: m.content,
           isStreaming: false,
+          citations: m.citations || [],
           citationCount: (m.citations || []).length,
         }));
         // Populate citations from last assistant message.
@@ -458,12 +468,12 @@ function chatApp() {
       this.activeCitationIndex = null;
 
       // Add user message to UI immediately.
-      this.messages.push({ role: 'user', content: text, isStreaming: false, citationCount: 0 });
+      this.messages.push({ role: 'user', content: text, isStreaming: false, citations: [], citationCount: 0 });
       this.scrollToBottom();
 
       // Add placeholder assistant bubble.
       const assistantIndex = this.messages.length;
-      this.messages.push({ role: 'assistant', content: '', isStreaming: true, citationCount: 0 });
+      this.messages.push({ role: 'assistant', content: '', isStreaming: true, citations: [], citationCount: 0 });
       this.scrollToBottom();
 
       const payload = {
@@ -525,6 +535,7 @@ function chatApp() {
             } else if (event.type === 'citations') {
               // Populate left panel.
               this.citations = event.citations || [];
+              this.messages[assistantIndex].citations = this.citations;
               this.messages[assistantIndex].citationCount = this.citations.length;
 
             } else if (event.type === 'done') {

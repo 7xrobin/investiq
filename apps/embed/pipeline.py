@@ -11,6 +11,7 @@ should wrap them in a threading.Thread (daemon=True).
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,14 +20,25 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-def _embed_and_store(chunks) -> int:
-    """Embed a list of LangChain Documents and add them to the Chroma store."""
+def _build_source_id(metadata: dict, fallback_source: str) -> str:
+    """Build a readable source identifier used for replace-on-reembed."""
+    url = (metadata.get("url") or "").strip()
+    if url:
+        return url
+    title = (metadata.get("title") or "untitled").strip()
+    source_name = Path(fallback_source).name
+    return f"{title}::{source_name}"
+
+
+def _embed_and_store(chunks, source_id: str) -> int:
+    """Embed chunks and replace any existing chunks for the same source."""
     from langchain_chroma import Chroma
     from langchain_openai import OpenAIEmbeddings
 
     if not chunks:
         return 0
 
+    # TODO: check the embed dimension
     embeddings = OpenAIEmbeddings(
         model=settings.OPENAI_EMBEDDING_MODEL,
         openai_api_key=settings.OPENAI_API_KEY,
@@ -37,9 +49,19 @@ def _embed_and_store(chunks) -> int:
         embedding_function=embeddings,
         persist_directory=str(settings.CHROMA_PERSIST_DIR),
     )
+    # Delete old chunks for the same source
+    try:
+        store.delete(where={"source_id": source_id})
+    except Exception as exc:
+        logger.warning("Failed to delete old chunks for source_id=%s: %s", source_id, exc)
 
     ids = store.add_documents(chunks)
-    logger.info("Stored %d chunks in Chroma collection '%s'", len(ids), settings.CHROMA_COLLECTION)
+    logger.info(
+        "Stored %d chunks in Chroma collection '%s' (source_id=%s)",
+        len(ids),
+        settings.CHROMA_COLLECTION,
+        source_id,
+    )
     return len(ids)
 
 
@@ -111,6 +133,8 @@ def embed_pdf(pdf_path: str, metadata: dict) -> dict:
 
     text = load_pdf(pdf_path)
     enriched = _enrich_metadata(text, metadata)
+    source_id = _build_source_id(enriched, pdf_path)
+    enriched["source_id"] = source_id
 
     chunks = chunk_document(
         text=text,
@@ -118,7 +142,7 @@ def embed_pdf(pdf_path: str, metadata: dict) -> dict:
         chunk_size=settings.CHUNK_SIZE,
         overlap=settings.CHUNK_OVERLAP,
     )
-    stored = _embed_and_store(chunks)
+    stored = _embed_and_store(chunks, source_id=source_id)
     _update_source_record(enriched, stored)
 
     result = {"status": "ok", "chunks": stored, "source": pdf_path}
@@ -140,6 +164,8 @@ def embed_url(url: str, metadata: dict) -> dict:
     base_metadata = {**metadata, "url": url}
     text = load_url(url)
     enriched = _enrich_metadata(text, base_metadata)
+    source_id = _build_source_id(enriched, url)
+    enriched["source_id"] = source_id
 
     chunks = chunk_document(
         text=text,
@@ -147,7 +173,7 @@ def embed_url(url: str, metadata: dict) -> dict:
         chunk_size=settings.CHUNK_SIZE,
         overlap=settings.CHUNK_OVERLAP,
     )
-    stored = _embed_and_store(chunks)
+    stored = _embed_and_store(chunks, source_id=source_id)
     _update_source_record(enriched, stored)
 
     result = {"status": "ok", "chunks": stored, "source": url}

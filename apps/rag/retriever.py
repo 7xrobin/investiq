@@ -10,6 +10,7 @@ import logging
 
 from django.conf import settings
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_openai import OpenAIEmbeddings
 
@@ -67,3 +68,30 @@ def get_multi_jurisdiction_retriever(
         },
     )
     return retriever
+
+
+def retrieve_context_docs(user_message: str, jurisdiction: str = "DE") -> list[Document]:
+    """
+    Retrieve documents for RAG context.
+
+    This keeps retrieval concerns out of agent orchestration. We intentionally
+    avoid additional balancing/deduping here and rely on clean ingestion data.
+    """
+    from .query_builder import reform_query
+
+    try:
+        queries = reform_query(user_message, jurisdiction=jurisdiction)
+    except Exception:
+        queries = [user_message]
+        logger.warning("Query reformulation failed, using original query.")
+
+    retriever = get_retriever(jurisdiction=jurisdiction)
+    docs: list[Document] = []
+
+    for query in queries:
+        try:
+            docs.extend(retriever.invoke(query))
+        except Exception as exc:
+            logger.warning("Retrieval failed for query %r: %s", query, exc)
+
+    return docs
