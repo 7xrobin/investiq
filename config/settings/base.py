@@ -178,5 +178,6 @@ MEMORY_DB_PATH = BASE_DIR / "data" / "memory.sqlite3"
 # ---------------------------------------------------------------------------
 DEFAULT_JURISDICTION = "DE"
 MAX_RETRIEVAL_DOCS = 6
+MIN_RELEVANCE_SCORE = 0.2
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200

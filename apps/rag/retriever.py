@@ -85,12 +85,41 @@ def retrieve_context_docs(user_message: str, jurisdiction: str = "DE") -> list[D
         queries = [user_message]
         logger.warning("Query reformulation failed, using original query.")
 
-    retriever = get_retriever(jurisdiction=jurisdiction)
+    # We need similarity scores for the UI "Sources & References" panel.
+    # VectorStoreRetriever.invoke() returns Documents only, so we call the
+    # vector store directly to get (Document, score) pairs.
+    store = get_vector_store()
+    # Fetch more than we need, because we will filter out low-similarity chunks.
+    k = getattr(settings, "MAX_RETRIEVAL_DOCS", 6) * 3
+    min_relevance_score = getattr(settings, "MIN_RELEVANCE_SCORE", 0.2)
     docs: list[Document] = []
+    seen_keys: set[tuple[str, str]] = set()
 
     for query in queries:
         try:
-            docs.extend(retriever.invoke(query))
+            docs_with_scores = store.similarity_search_with_relevance_scores(
+                query,
+                k=k,
+                filter={"jurisdiction": jurisdiction},
+            )
+            for doc, score in docs_with_scores:
+                if score is not None and score < min_relevance_score:
+                    continue
+
+                # Copy metadata so we don't mutate shared doc instances.
+                md = dict(doc.metadata or {})
+                md["relevance_score"] = score
+                # Best-effort de-dupe for multi-query retrieval.
+                # If stable IDs are missing, avoid over-filtering.
+                source_id = str(md.get("source_id", "") or "")
+                chunk_id = str(md.get("chunk_id", "") or "")
+                if source_id or chunk_id:
+                    key = (source_id, chunk_id)
+                    if key in seen_keys:
+                        continue
+                    seen_keys.add(key)
+
+                docs.append(Document(page_content=doc.page_content, metadata=md))
         except Exception as exc:
             logger.warning("Retrieval failed for query %r: %s", query, exc)
 

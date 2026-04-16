@@ -250,6 +250,59 @@
               <!-- Assistant messages: markdown rendered -->
               <template x-if="msg.role === 'assistant'">
                 <div>
+                  <!-- Goal card (emitted when the agent saved or updated a goal) -->
+                  <template x-if="msg.goalCard">
+                    <div class="mb-3 border border-amber-200 bg-amber-50 rounded-lg p-3 space-y-2">
+                      <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-600" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span class="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                          Investment goal saved
+                        </span>
+                      </div>
+                      <p x-show="msg.goalCard.goal_description"
+                         class="text-sm text-gray-900"
+                         x-text="msg.goalCard.goal_description"></p>
+                      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        <template x-if="msg.goalCard.horizon_years">
+                          <div class="contents">
+                            <div class="text-gray-500">Horizon</div>
+                            <div class="text-gray-900"
+                                 x-text="msg.goalCard.horizon_years + ' years'"></div>
+                          </div>
+                        </template>
+                        <template x-if="msg.goalCard.risk_tolerance">
+                          <div class="contents">
+                            <div class="text-gray-500">Risk tolerance</div>
+                            <div class="text-gray-900"
+                                 x-text="msg.goalCard.risk_tolerance_display || msg.goalCard.risk_tolerance"></div>
+                          </div>
+                        </template>
+                        <template x-if="msg.goalCard.target_return_pct">
+                          <div class="contents">
+                            <div class="text-gray-500">Target return</div>
+                            <div class="text-gray-900"
+                                 x-text="Number(msg.goalCard.target_return_pct).toFixed(1) + '% p.a.'"></div>
+                          </div>
+                        </template>
+                        <template x-if="msg.goalCard.monthly_savings_eur">
+                          <div class="contents">
+                            <div class="text-gray-500">Monthly savings</div>
+                            <div class="text-gray-900"
+                                 x-text="'€' + Number(msg.goalCard.monthly_savings_eur).toLocaleString('en-US', { maximumFractionDigits: 0 })"></div>
+                          </div>
+                        </template>
+                      </div>
+                      <a href="{% url 'goals:list' %}"
+                         class="text-xs text-amber-800 hover:text-amber-900 underline inline-flex items-center gap-1">
+                        Manage goals →
+                      </a>
+                    </div>
+                  </template>
+
                   <div class="prose prose-sm max-w-none prose-headings:text-gray-800
                               prose-a:text-brand-600 prose-code:text-xs"
                        x-html="renderMarkdown(msg.content)"></div>
@@ -442,6 +495,7 @@ function chatApp() {
           isStreaming: false,
           citations: m.citations || [],
           citationCount: (m.citations || []).length,
+          goalCard: m.goal_card || null,
         }));
         // Populate citations from last assistant message.
         const lastAssistant = [...data.messages].reverse().find(m => m.role === 'assistant');
@@ -468,12 +522,12 @@ function chatApp() {
       this.activeCitationIndex = null;
 
       // Add user message to UI immediately.
-      this.messages.push({ role: 'user', content: text, isStreaming: false, citations: [], citationCount: 0 });
+      this.messages.push({ role: 'user', content: text, isStreaming: false, citations: [], citationCount: 0, goalCard: null });
       this.scrollToBottom();
 
       // Add placeholder assistant bubble.
       const assistantIndex = this.messages.length;
-      this.messages.push({ role: 'assistant', content: '', isStreaming: true, citations: [], citationCount: 0 });
+      this.messages.push({ role: 'assistant', content: '', isStreaming: true, citations: [], citationCount: 0, goalCard: null });
       this.scrollToBottom();
 
       const payload = {
@@ -537,6 +591,11 @@ function chatApp() {
               this.citations = event.citations || [];
               this.messages[assistantIndex].citations = this.citations;
               this.messages[assistantIndex].citationCount = this.citations.length;
+
+            } else if (event.type === 'goal_card') {
+              // Agent saved/updated a goal — attach snapshot to the bubble.
+              this.messages[assistantIndex].goalCard = event.goal || null;
+              this.scrollToBottom();
 
             } else if (event.type === 'done') {
               // Finalise.
