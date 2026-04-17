@@ -8,53 +8,52 @@ AI-powered investment research assistant for expat professionals in Germany. Ask
 
 ### Backend
 
-| Package | Version | Role |
-|---|---|---|
-| **Django** | 5.0 | Web framework — views, ORM, auth, admin, session management |
-| **django-environ** | 0.11 | Reads `.env` files into Django settings; keeps secrets out of code |
-| **django-extensions** | 3.2 | Developer utilities (`shell_plus`, `show_urls`, `runserver_plus`) |
-| **Whitenoise** | 6.7 | Serves static files directly from Django in production (no nginx needed) |
+| Package               | Version | Role                                                                     |
+| --------------------- | ------- | ------------------------------------------------------------------------ |
+| **Django**            | 5.0     | Web framework — views, ORM, auth, admin, session management              |
+| **django-environ**    | 0.11    | Reads `.env` files into Django settings; keeps secrets out of code       |
+| **django-extensions** | 3.2     | Developer utilities (`shell_plus`, `show_urls`, `runserver_plus`)        |
+| **Whitenoise**        | 6.7     | Serves static files directly from Django in production (no nginx needed) |
 
 ### AI / RAG Pipeline
 
-| Package | Version | Role |
-|---|---|---|
-| **LangChain** | 0.3 | Core abstractions — chains, runnables, tool-calling agent, prompt templates |
-| **langchain-openai** | 0.2 | LangChain bindings for OpenAI Chat and Embedding models |
-| **langchain-community** | 0.3 | `SQLChatMessageHistory` — persists conversation memory to SQLite |
-| **langchain-chroma** | 0.1 | LangChain bindings for the Chroma vector store |
-| **openai** | 1.40 | Direct OpenAI SDK (used by langchain-openai under the hood) |
-| **tiktoken** | 0.7 | Token counting for chunking and context-window management |
-| **LangSmith** | ≥0.1.112 | Optional tracing and observability for LangChain runs |
+| Package                 | Version  | Role                                                                        |
+| ----------------------- | -------- | --------------------------------------------------------------------------- |
+| **LangChain**           | 0.3      | Core abstractions — chains, runnables, tool-calling agent, prompt templates |
+| **langchain-openai**    | 0.2      | LangChain bindings for OpenAI Chat and Embedding models                     |
+| **langchain-community** | 0.3      | `SQLChatMessageHistory` — persists conversation memory to SQLite            |
+| **langchain-chroma**    | 0.1      | LangChain bindings for the Chroma vector store                              |
+| **openai**              | 1.40     | Direct OpenAI SDK (used by langchain-openai under the hood)                 |
+| **tiktoken**            | 0.7      | Token counting for chunking and context-window management                   |
+| **LangSmith**           | ≥0.1.112 | Optional tracing and observability for LangChain runs                       |
 
 ### Vector Store & Memory
 
-| Package | Role |
-|---|---|
-| **Chroma** (`chromadb`) | Local vector database. Persists embeddings to `data/chroma/` (SQLite-backed). Handles similarity search with metadata filtering (jurisdiction, source type). |
-| **SQLAlchemy** | Database toolkit used by `SQLChatMessageHistory` to read/write the SQLite memory file at `data/memory.sqlite3`. |
-| **SQLite** (stdlib) | Two separate databases: `db.sqlite3` for all Django models (users, conversations, citations); `data/memory.sqlite3` for LangChain conversation history checkpoints. |
+| Package                 | Role                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Chroma** (`chromadb`) | Local vector database. Persists embeddings to `data/chroma/` (SQLite-backed). Handles similarity search with metadata filtering (jurisdiction, source type).        |
+| **SQLAlchemy**          | Database toolkit used by `SQLChatMessageHistory` to read/write the SQLite memory file at `data/memory.sqlite3`.                                                     |
+| **SQLite** (stdlib)     | Two separate databases: `db.sqlite3` for all Django models (users, conversations, citations); `data/memory.sqlite3` for LangChain conversation history checkpoints. |
 
 > **Why two SQLite files?** The Django DB holds structured relational data with its own migration lifecycle. The memory DB is owned by LangChain and stores raw message sequences — different schemas, different access patterns, no benefit to mixing them.
 
 ### Document Ingestion
 
-| Package | Role |
-|---|---|
-| **pypdf** | Extracts text from PDF files page-by-page |
-| **httpx** | Async-capable HTTP client for fetching web sources (BaFin, gesetze-im-internet.de, etc.) |
-| **beautifulsoup4** | Parses fetched HTML, strips navigation/scripts, extracts `<article>` / `<main>` content |
-| **Celery** | Distributed task queue — runs PDF and URL ingestion jobs in the background |
-| **Redis** | Celery message broker and result backend. Only required when running ingestion workers. |
+| Package                | Role                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| **pypdf**              | Extracts text from PDF files page-by-page                                                      |
+| **httpx**              | Async-capable HTTP client for fetching web sources (BaFin, gesetze-im-internet.de, etc.)       |
+| **beautifulsoup4**     | Parses fetched HTML, strips navigation/scripts, extracts `<article>` / `<main>` content        |
+| **threading** (stdlib) | Background threads used by the embed views to run ingestion without blocking the HTTP response |
 
 ### Frontend
 
-| Library | How it's loaded | Role |
-|---|---|---|
-| **Tailwind CSS** | CDN | Utility-first styling |
-| **Alpine.js** | CDN | Lightweight reactivity — citation card state, panel toggles |
-| **HTMX** | CDN | Partial page updates without a full JS framework |
-| **marked.js** | CDN | Renders LLM markdown responses (bold, lists, code blocks) in the chat panel |
+| Library          | How it's loaded | Role                                                                        |
+| ---------------- | --------------- | --------------------------------------------------------------------------- |
+| **Tailwind CSS** | CDN             | Utility-first styling                                                       |
+| **Alpine.js**    | CDN             | Lightweight reactivity — citation card state, panel toggles                 |
+| **HTMX**         | CDN             | Partial page updates without a full JS framework                            |
+| **marked.js**    | CDN             | Renders LLM markdown responses (bold, lists, code blocks) in the chat panel |
 
 ---
 
@@ -73,14 +72,14 @@ Browser
 
 ### RAG app modules
 
-| File | Role |
-|---|---|
-| `retriever.py` | Chroma vector store — jurisdiction-filtered similarity search |
-| `chain.py` | Shared utilities: `_format_docs`, `_docs_to_citation_dicts`, `build_rag_chain` |
-| `agent.py` | Agent definition (`create_investiq_agent`) and streaming entry point (`stream_agent_response`) — owns SQLite memory wiring |
-| `tools.py` | LangChain `@tool` definitions for goal management and portfolio simulation |
-| `prompts.py` | All prompt strings: `SYSTEM_PROMPT`, `USER_PROMPT_TEMPLATE`, `AGENT_SYSTEM_PROMPT`, `GOAL_EXTRACTION_PROMPT`, `QUERY_REFORM_PROMPT` |
-| `query_builder.py` | Multi-query reformulation — expands one query into 3 retrieval variants |
+| File               | Role                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `retriever.py`     | Chroma vector store — jurisdiction-filtered similarity search                                                                       |
+| `chain.py`         | Shared utilities: `_format_docs`, `_docs_to_citation_dicts`, `build_rag_chain`                                                      |
+| `agent.py`         | Agent definition (`create_investiq_agent`) and streaming entry point (`stream_agent_response`) — owns SQLite memory wiring          |
+| `tools.py`         | LangChain `@tool` definitions for goal management and portfolio simulation                                                          |
+| `prompts.py`       | All prompt strings: `SYSTEM_PROMPT`, `USER_PROMPT_TEMPLATE`, `AGENT_SYSTEM_PROMPT`, `GOAL_EXTRACTION_PROMPT`, `QUERY_REFORM_PROMPT` |
+| `query_builder.py` | Multi-query reformulation — expands one query into 3 retrieval variants                                                             |
 
 ### Request flow
 
@@ -100,11 +99,11 @@ User message
 
 ### Storage layers
 
-| Layer | Technology | What lives there |
-|---|---|---|
-| Vector store | Chroma (`data/chroma/`) | Document embeddings, searched by the RAG pipeline |
-| Conversation memory | SQLite (`data/memory.sqlite3`) | LangChain `SQLChatMessageHistory`, managed by `agent.py` |
-| App data | SQLite (`db.sqlite3`) | Users, Conversations, Messages, Citations, InvestmentGoals |
+| Layer               | Technology                     | What lives there                                           |
+| ------------------- | ------------------------------ | ---------------------------------------------------------- |
+| Vector store        | Chroma (`data/chroma/`)        | Document embeddings, searched by the RAG pipeline          |
+| Conversation memory | SQLite (`data/memory.sqlite3`) | LangChain `SQLChatMessageHistory`, managed by `agent.py`   |
+| App data            | SQLite (`db.sqlite3`)          | Users, Conversations, Messages, Citations, InvestmentGoals |
 
 > Retrieval is part of the pipeline and always runs — it is **not** a LangChain tool. Tools are reserved for goal management side-effects the LLM can optionally trigger mid-conversation.
 
@@ -125,7 +124,7 @@ investiq/
 │   │   ├── prompts.py        # All prompts (SYSTEM, USER, AGENT, GOAL_EXTRACTION, QUERY_REFORM)
 │   │   ├── retriever.py      # Chroma vector store, jurisdiction-filtered retriever
 │   │   └── query_builder.py  # Multi-query reformulation
-│   ├── ingestion/            # PDF + web loaders, chunker, Celery tasks
+│   ├── embed/                # PDF + URL loaders, chunker, embedding pipeline
 │   ├── goals/                # InvestmentGoal model, LLM extractor, views
 │   └── sources/              # SourceDocument tracker, admin corpus browser
 ├── templates/                # base.html + split-panel chat UI
@@ -166,6 +165,8 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
+Regular users can self-register at `http://localhost:8000/accounts/signup/` once the server is running.
+
 ### 4. Start the dev server
 
 ```bash
@@ -176,14 +177,14 @@ Open `http://localhost:8000` and log in.
 
 ### 5. Ingest documents (optional — required for RAG to return results)
 
-```bash
-# In a second terminal (requires Redis running for Celery)
-celery -A celery_app worker --loglevel=info
+**Option A — Web UI (recommended):** Log in as a staff user and visit `http://localhost:8000/embed/` to upload PDFs or submit URLs directly from the browser. Ingestion runs in a background thread.
 
-# Trigger ingestion from the Django shell
+**Option B — Django shell:**
+
+```bash
 python manage.py shell_plus
->>> from apps.ingestion.tasks import ingest_pdf_task
->>> ingest_pdf_task.delay("data/pdfs/markowitz1952.pdf", {
+>>> from apps.embed.pipeline import embed_pdf
+>>> embed_pdf("data/pdfs/markowitz1952.pdf", {
 ...     "title": "Portfolio Selection",
 ...     "author": "Markowitz",
 ...     "year": 1952,
@@ -203,7 +204,6 @@ python manage.py shell_plus
 3. **Retrieval is pipeline, not a tool** — Chroma is always queried before the agent runs; tools are for goal management side-effects only
 4. **Every chunk** carries the full metadata schema at ingest time (`source_type`, `author`, `title`, `year`, `jurisdiction`, `url`, `page`, `last_ingested`, `language`, `tags`)
 5. **Jurisdiction filter** is always applied on retrieval — never retrieve without one
-<!-- TODO: improve UX of it -->
 6. **§63 WpHG disclaimer** is appended to every investment strategy response (enforced in `AGENT_SYSTEM_PROMPT` and `simulate_portfolio_returns` tool docstring)
 7. **Chat responses** use SSE streaming; all other endpoints are synchronous
 8. **Response language** auto-detected from user message (DE or EN)

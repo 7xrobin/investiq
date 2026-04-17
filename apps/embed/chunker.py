@@ -66,7 +66,6 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
 
     filled = {**defaults, **metadata}
 
-    # Coerce numeric fields.
     for int_field in ("year", "page"):
         if not isinstance(filled[int_field], int):
             try:
@@ -74,7 +73,6 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
             except (ValueError, TypeError):
                 filled[int_field] = 0
 
-    # Normalise string fields.
     for str_field in ("source_type", "author", "title", "jurisdiction", "url",
                       "language", "last_ingested", "section_title", "source_id", "chunk_id"):
         filled[str_field] = str(filled[str_field]).strip()
@@ -88,7 +86,6 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     else:
         filled["tags"] = ""
 
-    # Validate controlled-vocabulary fields.
     if filled["source_type"] not in VALID_SOURCE_TYPES:
         logger.warning("Invalid source_type %r — defaulting to 'other'.", filled["source_type"])
         filled["source_type"] = "other"
@@ -101,7 +98,6 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         logger.warning("Invalid language %r — defaulting to 'en'.", filled["language"])
         filled["language"] = "en"
 
-    # Always stamp ingestion time.
     filled["last_ingested"] = now_iso
 
     return filled

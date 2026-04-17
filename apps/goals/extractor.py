@@ -99,7 +99,8 @@ def upsert_goal(user, conversation, goal_data: dict[str, Any]):
     """
     Create or update an InvestmentGoal from extracted goal data.
 
-    TODO: Make goals multiple goals possible
+    Currently enforces a single active goal per user; supporting multiple
+    concurrent goals would require changes here and in tools.py.
     Deactivates all previous active goals for this user before creating the
     new one, ensuring only one active goal exists at a time.
 

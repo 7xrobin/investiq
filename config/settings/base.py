@@ -181,3 +181,8 @@ MAX_RETRIEVAL_DOCS = 6
 MIN_RELEVANCE_SCORE = 0.2
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
+
+# ---------------------------------------------------------------------------
+# Rate limiting — max user-initiated messages per calendar day
+# ---------------------------------------------------------------------------
+MAX_MESSAGES_PER_DAY_PER_USER = env.int("MAX_MESSAGES_PER_DAY_PER_USER", default=50)

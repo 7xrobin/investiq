@@ -38,7 +38,7 @@ def _embed_and_store(chunks, source_id: str) -> int:
     if not chunks:
         return 0
 
-    # TODO: check the embed dimension
+    # text-embedding-3-small produces 1536-dimensional vectors; update CHROMA_COLLECTION if switching models.
     embeddings = OpenAIEmbeddings(
         model=settings.OPENAI_EMBEDDING_MODEL,
         openai_api_key=settings.OPENAI_API_KEY,

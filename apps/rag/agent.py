@@ -6,6 +6,8 @@ from __future__ import annotations
 import logging
 from typing import Generator
 
+import openai
+
 from django.conf import settings
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_community.chat_message_histories import SQLChatMessageHistory
@@ -140,6 +142,14 @@ def stream_agent_response(
             # AgentExecutor yields step-level dicts; "output" is the final answer.
             if "output" in chunk:
                 final_output = chunk["output"]
+    except openai.RateLimitError:
+        logger.warning("OpenAI rate limit hit for conversation=%d", conversation_id)
+        yield {"type": "error", "message": "OpenAI rate limit reached — please wait a moment and try again."}
+        return
+    except openai.APIError as exc:
+        logger.exception("OpenAI API error for conversation=%d: %s", conversation_id, exc)
+        yield {"type": "error", "message": "The AI service returned an error — please try again shortly."}
+        return
     except Exception as exc:
         logger.exception("Agent error for conversation=%d: %s", conversation_id, exc)
         yield {"type": "error", "message": f"Agent error: {exc}"}

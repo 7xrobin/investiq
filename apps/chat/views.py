@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import date
 
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -101,6 +103,18 @@ class StreamView(LoginRequiredMixin, View):
         user_message_text = body.get("message", "").strip()
         if not user_message_text:
             return JsonResponse({"error": "message field is required."}, status=400)
+
+        daily_limit = getattr(settings, "MAX_MESSAGES_PER_DAY_PER_USER", 50)
+        messages_today = Message.objects.filter(
+            conversation__user=request.user,
+            role="user",
+            created_at__date=date.today(),
+        ).count()
+        if messages_today >= daily_limit:
+            return JsonResponse(
+                {"error": f"Daily message limit of {daily_limit} reached. Try again tomorrow."},
+                status=429,
+            )
 
         jurisdiction = body.get("jurisdiction") or request.user.preferred_jurisdiction
         conversation_id = body.get("conversation_id")
