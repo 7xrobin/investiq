@@ -54,9 +54,21 @@ class GoalListView(LoginRequiredMixin, View):
 
         active_goal = goals.filter(is_active=True).first()
         history = goals.filter(is_active=False)
+
+        # Simulation card: ETF presets + pre-fill values drawn from the active goal.
+        from .presets import DEFAULT_PRESET_KEY, ETF_PRESETS
+
+        sim_defaults = {
+            "monthly": active_goal.monthly_savings_eur if active_goal else None,
+            "years": active_goal.horizon_years if active_goal else None,
+            "return_pct": active_goal.target_return_pct if active_goal else None,
+        }
         return render(request, "goals/list.html", {
             "active_goal": active_goal,
             "history": history,
+            "etf_presets_json": json.dumps(ETF_PRESETS),
+            "default_preset_key": DEFAULT_PRESET_KEY,
+            "sim_defaults_json": json.dumps(sim_defaults),
         })
 
 

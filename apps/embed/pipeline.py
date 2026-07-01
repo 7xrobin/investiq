@@ -94,6 +94,7 @@ def _update_source_record(metadata: dict, chunk_count: int) -> None:
             "last_ingested": datetime.now(tz=timezone.utc),
             "chunk_count": chunk_count,
             "is_active": True,
+            "is_tax_authority": bool(metadata.get("is_tax_authority", False)),
         },
     )
 

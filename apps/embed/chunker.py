@@ -32,6 +32,7 @@ METADATA_SCHEMA: dict[str, type] = {
     "section_title": str,  # Section heading this chunk belongs to
     "source_id": str,      # Stable source identity for idempotent storage/retrieval
     "chunk_id": str,       # Stable chunk identity within the source
+    "is_tax_authority": bool,  # Authoritative tax source — prioritised in retrieval
 }
 
 VALID_SOURCE_TYPES = {"regulatory", "academic", "news", "other"}
@@ -62,9 +63,13 @@ def _validate_and_fill_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "section_title": "",
         "source_id": "",
         "chunk_id": "",
+        "is_tax_authority": False,
     }
 
     filled = {**defaults, **metadata}
+
+    # Coerce the tax-authority flag to a plain bool (Chroma stores bool scalars).
+    filled["is_tax_authority"] = bool(filled.get("is_tax_authority", False))
 
     for int_field in ("year", "page"):
         if not isinstance(filled[int_field], int):

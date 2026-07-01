@@ -186,8 +186,78 @@ def simulate_portfolio_returns(
     return "\n".join(lines)
 
 
+@tool
+def calculate_required_investment(
+    target_amount_eur: float,
+    years: int,
+    annual_return_pct: float,
+    initial_amount_eur: float = 0.0,
+) -> str:
+    """Work out how much the user must invest to reach a target amount.
+
+    Use when the user asks "how much do I need to invest to reach €X in Y years"
+    or "what monthly amount gets me to my goal". Computes both the required
+    monthly contribution (given any starting lump sum) and the required one-off
+    lump sum today (with no monthly contributions). Always append the §63 WpHG
+    disclaimer after presenting the result.
+
+    Inverse of simulate_portfolio_returns:
+      FV = PV*(1+r)^n + PMT*(((1+r)^n - 1) / r),  r = annual_return_pct/100/12
+    Solved for PMT and, separately, for PV.
+    """
+    if years <= 0 or years > 100:
+        return "years must be between 1 and 100."
+    if annual_return_pct < -50 or annual_return_pct > 100:
+        return "annual_return_pct seems outside a realistic range (-50 to 100)."
+    if target_amount_eur <= 0:
+        return "target_amount_eur must be a positive number."
+
+    r = annual_return_pct / 100 / 12
+    n = years * 12
+    growth = (1 + r) ** n  # future-value factor for the lump sum
+
+    # Future value already secured by the starting lump sum.
+    fv_from_initial = initial_amount_eur * growth
+    remaining = target_amount_eur - fv_from_initial
+
+    if remaining <= 0:
+        return (
+            f"Your initial €{initial_amount_eur:,.0f} alone grows to "
+            f"€{fv_from_initial:,.0f} at {annual_return_pct:.1f}% p.a. over {years} years — "
+            f"already above your €{target_amount_eur:,.0f} target. No monthly "
+            f"contribution is required.\n\n"
+            "Disclaimer (§63 WpHG): This is an illustrative projection, not "
+            "investment advice. Returns are not guaranteed."
+        )
+
+    # Required monthly contribution to cover the remaining gap.
+    if r == 0:
+        required_monthly = remaining / n
+    else:
+        annuity_factor = (growth - 1) / r
+        required_monthly = remaining / annuity_factor
+
+    # Required one-off lump sum today instead (no monthly contributions).
+    required_lump_sum = target_amount_eur / growth
+
+    monthly_contributed = required_monthly * n + initial_amount_eur
+
+    return (
+        f"To reach €{target_amount_eur:,.0f} in {years} years at "
+        f"{annual_return_pct:.1f}% p.a.:\n\n"
+        f"• Starting from €{initial_amount_eur:,.0f}, invest about "
+        f"€{required_monthly:,.0f} per month "
+        f"(€{monthly_contributed:,.0f} contributed in total over {years} years).\n"
+        f"• Or invest a single lump sum of about €{required_lump_sum:,.0f} today "
+        f"and contribute nothing further.\n\n"
+        "Disclaimer (§63 WpHG): This is an illustrative projection, not "
+        "investment advice. Returns are not guaranteed."
+    )
+
+
 def make_all_tools(user_id: int, conversation_id: int) -> list:
     return [
         *make_goal_tools(user_id, conversation_id),
         simulate_portfolio_returns,
+        calculate_required_investment,
     ]

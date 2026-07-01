@@ -79,6 +79,122 @@
     </section>
   {% endif %}
 
+  {# --- Portfolio simulation card --- #}
+  <section class="border border-gray-200 bg-white rounded-lg p-5 space-y-5"
+           x-data="portfolioSim()" x-init="init()">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-medium">Portfolio Simulation</h2>
+        <p class="text-sm text-gray-500">
+          Project your investment growth using average ETF returns.
+        </p>
+      </div>
+      <svg class="w-6 h-6 text-brand-500" fill="none" viewBox="0 0 24 24"
+           stroke="currentColor" stroke-width="1.8">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 17l6-6 4 4 8-8M21 7v5m0-5h-5" />
+      </svg>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Initial amount (€)</label>
+        <input type="number" min="0" step="100" x-model.number="initial"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Monthly contribution (€)</label>
+        <input type="number" min="0" step="50" x-model.number="monthly"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">ETF / expected return</label>
+        <select x-model="presetKey"
+                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white
+                       focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent">
+          <template x-for="p in presets" :key="p.key">
+            <option :value="p.key" x-text="p.label + ' (~' + p.annual_return_pct.toFixed(1) + '%)'"></option>
+          </template>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Expected return (% p.a.)
+        </label>
+        <input type="number" min="-10" max="30" step="0.1" x-model.number="customRate"
+               :disabled="presetKey !== 'custom'"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50
+                      disabled:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent">
+      </div>
+    </div>
+
+    {# Time range slider — selects the period over which the gain/loss applies #}
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <label class="text-sm font-medium text-gray-700">Time range</label>
+        <span class="text-sm font-semibold text-brand-700" x-text="years + (years === 1 ? ' year' : ' years')"></span>
+      </div>
+      <input type="range" min="1" max="40" step="1" x-model.number="years"
+             class="w-full accent-brand-600 cursor-pointer">
+      <div class="flex justify-between text-xs text-gray-400 mt-1">
+        <span>1y</span><span>10y</span><span>20y</span><span>30y</span><span>40y</span>
+      </div>
+    </div>
+
+    {# Results #}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="rounded-lg bg-brand-50 border border-brand-100 p-4">
+        <p class="text-xs uppercase tracking-wide text-brand-700 font-semibold">Projected value</p>
+        <p class="text-2xl font-semibold text-brand-900 tabular-nums mt-1" x-text="fmt(finalValue)"></p>
+        <p class="text-xs text-gray-500 mt-0.5" x-text="'after ' + years + (years === 1 ? ' year' : ' years')"></p>
+      </div>
+      <div class="rounded-lg bg-gray-50 border border-gray-200 p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500 font-semibold">Total contributed</p>
+        <p class="text-2xl font-semibold text-gray-800 tabular-nums mt-1" x-text="fmt(totalContributed)"></p>
+        <p class="text-xs text-gray-500 mt-0.5">your own money in</p>
+      </div>
+      <div class="rounded-lg p-4 border"
+           :class="gain >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'">
+        <p class="text-xs uppercase tracking-wide font-semibold"
+           :class="gain >= 0 ? 'text-green-700' : 'text-red-700'"
+           x-text="gain >= 0 ? 'Total gain' : 'Total loss'"></p>
+        <p class="text-2xl font-semibold tabular-nums mt-1"
+           :class="gain >= 0 ? 'text-green-800' : 'text-red-800'" x-text="fmt(gain)"></p>
+        <p class="text-xs text-gray-500 mt-0.5" x-text="gainPct.toFixed(1) + '% on contributions'"></p>
+      </div>
+    </div>
+
+    {# Year-by-year growth bars — lightweight inline visualisation #}
+    <div>
+      <p class="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Growth over time</p>
+      <div class="flex items-end gap-px h-28">
+        <template x-for="pt in series" :key="pt.year">
+          <div class="flex-1 group relative flex flex-col justify-end h-full">
+            <div class="w-full bg-brand-200 rounded-t-sm" :style="`height:${pt.contribPct}%`"></div>
+            <div class="w-full bg-brand-500 group-hover:bg-brand-600 transition-colors"
+                 :style="`height:${pt.gainPct}%`"></div>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block
+                        whitespace-nowrap rounded bg-gray-800 text-white text-xs px-2 py-1 z-10">
+              <span x-text="'Y' + pt.year + ': ' + fmt(pt.value)"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-brand-200 inline-block"></span>Contributions</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-brand-500 inline-block"></span>Growth</span>
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-400 italic">
+      Illustrative projection using a constant average return — actual returns vary year to
+      year and are not guaranteed. Not investment advice (§63 WpHG).
+    </p>
+  </section>
+
   {# --- History (only when any inactive goals exist) --- #}
   {% if history %}
     <section class="space-y-2">
@@ -101,4 +217,82 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function portfolioSim() {
+  const defaults = {{ sim_defaults_json|safe }};
+  return {
+    presets: {{ etf_presets_json|safe }},
+    presetKey: "{{ default_preset_key }}",
+    customRate: 7.0,
+    initial: 1000,
+    monthly: defaults.monthly ?? 200,
+    years: defaults.years ?? 20,
+
+    init() {
+      // If the user's goal carries a target return, start on a custom rate.
+      if (defaults.return_pct != null) {
+        this.presetKey = 'custom';
+        this.customRate = defaults.return_pct;
+      }
+    },
+
+    get rate() {
+      if (this.presetKey === 'custom') return Number(this.customRate) || 0;
+      const p = this.presets.find(x => x.key === this.presetKey);
+      return p ? p.annual_return_pct : 7.0;
+    },
+
+    // FV = PV*(1+r)^n + PMT*(((1+r)^n - 1) / r),  r = annual/100/12, n = years*12
+    // Mirrors apps/rag/tools.py simulate_portfolio_returns.
+    _fv(years) {
+      const r = this.rate / 100 / 12;
+      const n = years * 12;
+      const pv = Number(this.initial) || 0;
+      const pmt = Number(this.monthly) || 0;
+      if (r === 0) return pv + pmt * n;
+      const growth = Math.pow(1 + r, n);
+      return pv * growth + pmt * (growth - 1) / r;
+    },
+
+    _contributed(years) {
+      return (Number(this.initial) || 0) + (Number(this.monthly) || 0) * years * 12;
+    },
+
+    get finalValue() { return this._fv(this.years); },
+    get totalContributed() { return this._contributed(this.years); },
+    get gain() { return this.finalValue - this.totalContributed; },
+    get gainPct() {
+      const c = this.totalContributed;
+      return c > 0 ? (this.gain / c) * 100 : 0;
+    },
+
+    // Per-year data for the bar chart, scaled to the final value.
+    get series() {
+      const max = this._fv(this.years) || 1;
+      const out = [];
+      for (let y = 1; y <= this.years; y++) {
+        const value = this._fv(y);
+        const contrib = this._contributed(y);
+        const gain = Math.max(value - contrib, 0);
+        out.push({
+          year: y,
+          value: value,
+          contribPct: (contrib / max) * 100,
+          gainPct: (gain / max) * 100,
+        });
+      }
+      return out;
+    },
+
+    fmt(v) {
+      return new Intl.NumberFormat('en-IE', {
+        style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
+      }).format(Math.round(v || 0));
+    },
+  };
+}
+</script>
 {% endblock %}

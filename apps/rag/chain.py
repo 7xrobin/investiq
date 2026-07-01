@@ -22,7 +22,10 @@ def _format_docs(docs: list[Document]) -> str:
     parts = []
     for i, doc in enumerate(docs, start=1):
         meta = doc.metadata
-        header_parts = [f"[Doc {i}] {meta.get('title', 'Unknown Title')}"]
+        # Authoritative tax sources are flagged so the model trusts them over
+        # general knowledge for tax questions (see prompts.py).
+        tax_marker = " [AUTHORITATIVE TAX SOURCE]" if meta.get("is_tax_authority") else ""
+        header_parts = [f"[Doc {i}]{tax_marker} {meta.get('title', 'Unknown Title')}"]
         for key, label in [
             ("author", "Author"),
             ("year", "Year"),
@@ -51,6 +54,7 @@ def _docs_to_citation_dicts(docs: list[Document]) -> list[dict]:
             "chunk_id": doc.metadata.get("chunk_id", ""),
             "jurisdiction": doc.metadata.get("jurisdiction", "DE"),
             "relevance_score": doc.metadata.get("relevance_score"),
+            "is_tax_authority": bool(doc.metadata.get("is_tax_authority", False)),
             "chunk_text": doc.page_content,
         }
         for doc in docs

@@ -1,0 +1,24 @@
+[project]
+name = "investiq"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4~=4.12",
+    "chromadb>=0.5.0",
+    "django~=5.0",
+    "django-environ~=0.11",
+    "django-extensions~=3.2",
+    "httpx~=0.27",
+    "langchain~=0.3.0",
+    "langchain-chroma>=0.1.3",
+    "langchain-community~=0.3.0",
+    "langchain-openai~=0.2.0",
+    "langsmith>=0.1.112,<0.2.0",
+    "openai>=1.40.0",
+    "pypdf~=4.3",
+    "sqlalchemy~=2.0",
+    "tiktoken~=0.7",
+    "whitenoise~=6.7",
+]

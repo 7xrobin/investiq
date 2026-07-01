@@ -97,6 +97,14 @@ class SourceDocument(models.Model):
         verbose_name=_("Active"),
         help_text=_("Inactive sources are excluded from corpus refresh."),
     )
+    is_tax_authority = models.BooleanField(
+        default=False,
+        verbose_name=_("Authoritative Tax Source"),
+        help_text=_(
+            "Treated as the primary source of truth for tax questions. "
+            "Prioritised in retrieval and trusted over the model's general knowledge."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

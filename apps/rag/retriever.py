@@ -92,35 +92,50 @@ def retrieve_context_docs(user_message: str, jurisdiction: str = "DE") -> list[D
     # Fetch more than we need, because we will filter out low-similarity chunks.
     k = getattr(settings, "MAX_RETRIEVAL_DOCS", 6) * 3
     min_relevance_score = getattr(settings, "MIN_RELEVANCE_SCORE", 0.2)
-    docs: list[Document] = []
     seen_keys: set[tuple[str, str]] = set()
 
-    for query in queries:
+    def _collect(query: str, where: dict, into: list[Document]) -> None:
+        """Run one similarity search, threshold + de-dupe, append to `into`."""
         try:
             docs_with_scores = store.similarity_search_with_relevance_scores(
-                query,
-                k=k,
-                filter={"jurisdiction": jurisdiction},
+                query, k=k, filter=where,
             )
-            for doc, score in docs_with_scores:
-                if score is not None and score < min_relevance_score:
-                    continue
-
-                # Copy metadata so we don't mutate shared doc instances.
-                md = dict(doc.metadata or {})
-                md["relevance_score"] = score
-                # Best-effort de-dupe for multi-query retrieval.
-                # If stable IDs are missing, avoid over-filtering.
-                source_id = str(md.get("source_id", "") or "")
-                chunk_id = str(md.get("chunk_id", "") or "")
-                if source_id or chunk_id:
-                    key = (source_id, chunk_id)
-                    if key in seen_keys:
-                        continue
-                    seen_keys.add(key)
-
-                docs.append(Document(page_content=doc.page_content, metadata=md))
         except Exception as exc:
             logger.warning("Retrieval failed for query %r: %s", query, exc)
+            return
 
-    return docs
+        for doc, score in docs_with_scores:
+            if score is not None and score < min_relevance_score:
+                continue
+
+            # Copy metadata so we don't mutate shared doc instances.
+            md = dict(doc.metadata or {})
+            md["relevance_score"] = score
+            # Best-effort de-dupe across queries and passes.
+            # If stable IDs are missing, avoid over-filtering.
+            source_id = str(md.get("source_id", "") or "")
+            chunk_id = str(md.get("chunk_id", "") or "")
+            if source_id or chunk_id:
+                key = (source_id, chunk_id)
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+
+            into.append(Document(page_content=doc.page_content, metadata=md))
+
+    # Pass 1 — authoritative tax sources first, so they rank ahead of everything
+    # else. Irrelevant tax docs drop out via the same relevance threshold, so
+    # non-tax questions are unaffected.
+    tax_docs: list[Document] = []
+    general_docs: list[Document] = []
+    for query in queries:
+        _collect(
+            query,
+            {"$and": [{"jurisdiction": jurisdiction}, {"is_tax_authority": True}]},
+            tax_docs,
+        )
+    # Pass 2 — the rest of the corpus (tax-authority chunks already de-duped out).
+    for query in queries:
+        _collect(query, {"jurisdiction": jurisdiction}, general_docs)
+
+    return tax_docs + general_docs
